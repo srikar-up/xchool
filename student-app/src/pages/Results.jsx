@@ -49,7 +49,7 @@ export default function Results() {
               <Award size={14} /> Best subject
             </span>
             <strong>{best ? best.subject : '—'}</strong>
-            <small>{best?.average === null ? '' : `${Math.round(best.average)}% average`}</small>
+            <small>{best && best.average !== null ? `${Math.round(best.average)}% average` : ''}</small>
           </div>
           <div>
             <span>
