@@ -811,6 +811,7 @@ npm run test:remark                         # teacher remark API + permissions, 
 npm run test:remark:ui                      # edit/save/reset a remark in the teacher UI
 npm run test:student:unit                   # student resolution + cross-student isolation
 npm run test:student                        # student login, isolation + every screen, isolated
+npm run test:student:prod                   # deployed student origin, read-only, no accounts created
 node server/test/profile-photo.e2e.mjs      # needs dev servers running
 node server/test/profile-ui.e2e.mjs
 node server/test/live-sync.e2e.mjs
