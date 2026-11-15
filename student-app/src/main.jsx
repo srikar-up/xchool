@@ -5,6 +5,7 @@ import './lib/firebase';
 import './styles/tokens.css';
 import './styles/app.css';
 import './styles/student.css';
+import './styles/theme.css';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
