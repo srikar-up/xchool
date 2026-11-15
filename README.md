@@ -1,13 +1,13 @@
 # Xchool RMS — React PWA prototype
 
-A working school management system built as **three separate web applications** that share one Node/Firestore API:
+A working school management system built as **three separate web applications** that share one Node/Cloudflare D1 API:
 
 | Workspace | Folder | URL | Design target |
 | :--- | :--- | :--- | :--- |
 | **Teacher app** | `teacher-app/` | `/teacher/` | Mobile-first installable PWA |
 | **Admin console** | `admin-panel/` | `/admin/` | Desktop-first installable PWA |
 | **Student portal** | `student-app/` | `/student/` | Mobile-first installable PWA, read-only |
-| **Shared data API** | `server/` | `/api/*` | Express + Firestore |
+| **Shared data API** | `server/` | `/api/*` | Express + Cloudflare D1 |
 
 All three apps are React 18 + Vite + plain CSS, with shared design tokens based on `school_rms_ui_design_system.md` and the reference images. Data is connected live through Server-Sent Events, so a teacher submitting attendance or marks updates the admin console immediately, and admin announcements appear in the teacher and student apps. In production each app is its own Worker on its own origin.
 
@@ -131,7 +131,7 @@ The teacher and admin apps also expose one-click demo buttons on their sign-in s
 
 ### Shared server
 
-- Express REST API with file persistence at `server/data/db.json` (Firestore in production).
+- Express REST API with file persistence at `server/data/db.json` locally (Cloudflare D1 in production).
 - Seeded demo school generated relative to today:
   - 56 students, 4 sections (10-A, 10-B, 9-A, 9-B)
   - 12 staff with SuperAdmin/SubAdmin/TeacherApp/NoAccess levels
@@ -263,32 +263,33 @@ can never resolve to a staff record (or the other way round).
 
 ### Scaling: per-record storage and delta sync
 
-The original prototype stored one Firestore document per collection
-(`school/attendanceSessions` contained every register). That hits Firestore's
-1 MiB document limit at around 150–250 students and lets two Worker isolates
+The original prototype stored one document per collection, which does not work
+once a school has a few hundred students: a whole attendance history or marks
+table in one row is slow to read and write, and two Worker isolates can
 overwrite each other's unrelated records.
 
 The server now uses layout v2:
 
-- `school/meta` — schema/revision/layout version.
-- `school/<collection>` — one document for small, rarely changing data
+- `documents('_meta', <field>)` — one row per `meta` field (revision, school
+  profile, layout version).
+- `documents('_config', <collection>)` — one row per small collection
   (`staff`, `classes`, `subjects`, `curricula`, `timetable`, `exams`,
   `assignments`, `classIncharges`, `announcements`, `rmsTickets`, `activities`).
-- `school/records/students/<id>` — one document per student.
-- `school/records/attendanceSessions/<id>` — one document per class/date/session.
-- `school/records/testRecords/<id>` — one document per student/exam mark.
-- `school/records/staffAttendance/<id>` — one document per staff/day.
+- `documents('students', <id>)` — one row per student.
+- `documents('attendanceSessions', <id>)` — one row per class/date/session.
+- `documents('testRecords', <id>)` — one row per student/exam mark.
+- `documents('staffAttendance', <id>)` — one row per staff/day.
 
-A register submission writes the register document plus meta and the capped
-activity log — about 3 Firestore writes, regardless of how many students are
-enrolled. One student edit writes one student document. The legacy layout is
-read once and migrated on boot; the old collection documents are deleted after
-a successful migration.
+A register submission writes the register row plus the changed meta fields and
+the capped activity log — a handful of D1 rows, regardless of how many students
+are enrolled. One student edit writes one row. Reads are paginated by id, so a
+cold isolate can load a large attendance history without hitting a response
+limit.
 
-`saveDbToFirestore` also enforces a **900 KiB safety limit** per document before
-writing, so a collection that would cross Firestore's 1 MiB cap fails loudly
-instead of silently losing the write. The SuperAdmin diagnostic endpoint shows
-the current sizes.
+Layout v1 is migrated on boot: the old collection rows are read once, rewritten
+per record, and deleted. `saveDbToD1` enforces a **900 KiB safety limit** per
+row before writing, and the SuperAdmin diagnostic endpoint shows the current
+sizes.
 
 ### Delta sync
 
@@ -303,7 +304,7 @@ prefer polling over SSE. The in-memory journal is bounded by
 `CHANGE_JOURNAL_LIMIT` (default 300 revisions); an older revision receives
 `{ full: true }`.
 
-A Worker isolate keeps its Firestore copy for its whole lifetime. A record
+A Worker isolate keeps its database snapshot for its whole lifetime. A record
 written through one isolate is therefore invisible to the others until they
 reload, which matters for portal logins: an administrator provisions a student
 on one isolate and the student's first request can land on another that booted
@@ -347,10 +348,10 @@ npm run test:scale            # model 1,000 students / 50 staff / 4 exams
 node server/scripts/load-test.mjs --students 1200 --days 90
 ```
 
-The model asserts every document stays under the safety limit, reports
-cold-start reads (currently about 11k documents for a 60-day term) and write
-amplification. `--write --yes` can write the generated fixture to an isolated
-`school_loadtest_*` Firestore namespace for a real latency/cost measurement.
+The model asserts every row stays under the safety limit, reports cold-start
+reads (currently about 11k rows for a 60-day term) and write amplification.
+`--write --yes` writes the generated fixture to the local JSON database so the
+API can be exercised at that size.
 
 ### API endpoints
 
@@ -579,12 +580,12 @@ Unlike the old Flutter prototype, this codebase intentionally fixes:
 
 ## 9. Known prototype limitations
 
-These are deliberately deferred until Firebase/backend integration:
+These are deliberately deferred:
 
-- **Auth**: `x-staff-id` header shim with demo credentials, not secure production authentication. Replace with Firebase Auth custom claims.
-- **Persistence**: JSON file on the local server, not concurrent multi-school storage. Replace with Firestore/Firebase Storage.
-- **Live sync**: whole-state SSE refetch, not granular Firestore snapshots. Fine for a demo, not for scale.
-- **Push notifications**: not implemented; preferences are saved locally and labelled as future Firebase functionality.
+- **Auth**: Firebase Auth is connected. A staff member without a Firebase account cannot sign in until the SuperAdmin creates one (the `create:users` script seeds the demo accounts).
+- **Persistence**: the API keeps the working set in memory and persists it to D1 (or a JSON file locally). Multiple schools would need a tenant column or a database per school.
+- **Live sync**: whole-state SSE refetch, not granular database change streams. Fine for a demo, not for scale.
+- **Push notifications**: not implemented; preferences are saved locally and labelled as future functionality.
 - **Excel**: full CSV bundle import/export is implemented for all datasets; the legacy 14-sheet `.xlsx` pipeline is not ported yet. Convert workbooks to the exported CSV layout first.
 - **Attachments**: announcement images and request attachments are not implemented in this prototype.
 - **Multi-year history**: a single 2026–2027 academic year is seeded. The timetable builder edits the active week template; per-week historical snapshots are not versioned yet.
@@ -593,24 +594,27 @@ These are deliberately deferred until Firebase/backend integration:
 
 ---
 
-## 10. Firebase later
+## 10. Backend notes
 
-The client/server boundary is already isolated in:
+The client/server boundary is isolated in:
 
 - `teacher-app/src/lib/api.js`
 - `admin-panel/src/lib/api.js`
+- `student-app/src/lib/api.js`
 
-To migrate:
+The database is **Cloudflare D1** (`server/src/d1-store.js`), reached through the
+Worker binding `env.DB`. Firebase is kept only for **Authentication**: the PWAs
+sign in with the Firebase client SDK and the API verifies the ID token.
 
-1. Create a Firebase project, Auth, Firestore and Storage.
-2. Mirror the shared collections from `server/src/seed.js` into Firestore.
-3. Replace `api.getState`, mutations and `EventSource` with Firebase SDK calls and `onSnapshot` listeners.
-4. Add custom claims for `SUPER_ADMIN`, `SUB_ADMIN`, `TEACHER`, `NO_ACCESS`.
-5. Move validation and attendance/marks permissions into Firestore security rules or Cloud Functions.
-6. Replace local demo accounts with Firebase Auth; remove the `x-staff-id` shim.
-7. Keep the same screens, routes and visual tokens.
+To move data between environments:
 
-The teacher/admin split, data shapes, print views and UI state have been designed to survive that move.
+1. `npm run import:d1 -- --data <file.json>` writes a full snapshot into D1.
+2. `npm run import:d1` reads the live Firestore project (only when its read
+   quota allows) and writes D1.
+3. `npm run test:db` runs the D1 persistence test against `wrangler dev`.
+
+The teacher/admin split, data shapes, print views and UI state do not depend on
+the storage backend.
 
 ---
 
@@ -625,6 +629,8 @@ npm run dev:student    # student dev server
 npm run build          # production build of all three PWAs
 npm start              # serve API + all three built PWAs on :4000
 npm run seed           # force-reseed the JSON demo database
+npm run import:d1      # copy a JSON/Firestore snapshot into D1
+npm run test:db        # D1 persistence test against a local Worker
 npm run test:api       # shared-data smoke tests (server must be running)
 npm run test:ui        # Chrome route checks + screenshots (server must be running)
 npm run test:attendance       # attendance-mode rules (no servers needed)
@@ -658,12 +664,12 @@ and the generated screenshots in `screenshots/`.
 | Admin panel | Vite + React | own origin, built with `base: '/'` |
 | Student portal | Vite + React | own origin, built with `base: '/'`, read-only |
 | API | Express | own origin |
-| Database | Firestore | reached only through the Firebase Admin SDK |
+| Database | Cloudflare D1 | `env.DB` binding inside the API Worker |
 | Media | Cloudinary | signed uploads, signature issued by the API |
 | Auth | Firebase Auth | `Authorization: Bearer <idToken>` |
 
-The browser never talks to Firestore: `firestore.rules` denies all client
-access and only the server holds Admin credentials.
+The browser never talks to D1: only the API Worker holds the binding and the
+SQL. Firebase is used for sign-in only; the school data never goes to Firestore.
 
 ### Local development
 
@@ -795,7 +801,7 @@ section of that grade, while each section keeps its own subject offering in
 ### Tests
 
 ```
-npm run test:db                             # Firestore architecture, isolated namespace
+npm run test:db                             # D1 persistence on a local Worker
 npm run test:auth                           # auth identity mapping
 npm run test:attendance                     # attendance-mode rules + app parity
 npm run test:attendance:api                 # mode enforcement, isolated API :4100
@@ -862,7 +868,8 @@ every `/api/student/*` call returns `403`. A staff token is rejected by
   account created in the Firebase console can be linked without a reset.
 
 Creating the Firebase user uses the Admin SDK on Node and the Identity Toolkit
-REST API on Workers. It needs the same service-account secret as Firestore.
+REST API on Workers. It needs the same service-account secret as ID-token
+verification.
 
 ### Endpoints
 
@@ -909,7 +916,8 @@ The E2E test creates two temporary Auth users, links them through the admin API,
 checks that a student token gets `403` on every staff route, proves that neither
 student's name/id/marks/attendance appears in the other's payload, disables and
 re-enables access, then drives the real PWA through every route. It deletes the
-users and uses a temporary JSON database; it never writes to live Firestore.
+users and uses a temporary JSON database; it never writes to the live school
+database.
 
 ---
 
@@ -957,30 +965,30 @@ applies everywhere.
 | `GET /api/telemetry` | SuperAdmin | per-account request counters |
 | `POST /api/telemetry/block` | SuperAdmin | `{ kind, id, blocked, reason }` |
 
-### Firestore quota
+### Database (Cloudflare D1)
 
-Every cold Worker isolate reads the whole database once (`initStoreAsync`), which
-is a few thousand documents for a demo-sized school. On the free tier that means
-roughly twenty cold starts exhaust the 50,000 daily reads, and the symptom is
-`/api/health` returning `503` with `RESOURCE_EXHAUSTED: Quota exceeded` in the
-logs. Reads stop; **writes still succeed**, which is why a profile merge can be
-written directly while the API cannot boot.
+Production data lives in the **`xchool-db`** D1 database, bound to the API Worker
+as `env.DB`. Locally the API uses `server/data/db.json` unless it is started
+through `wrangler dev`.
 
-When a boot is refused the Worker now waits 30 seconds before trying again and
-answers `503` with `Retry-After: 30`. That keeps retrying tabs from turning one
-bad minute into thousands of rejected reads.
+- **Create it once**: `npx wrangler d1 create xchool-db`, then copy the returned
+  `database_id` into `server/wrangler.jsonc`. The binding is already wired as
+  `DB`.
+- **Schema**: `server/src/d1-store.js` creates the `documents` table on first
+  boot and upgrades a layout-v1 database in place.
+- **Import**: `npm run import:d1 -- --data <file.json>` stages every row in
+  `documents_import` and swaps the table at the end, so a failed import leaves
+  the current data untouched. `npm run import:d1` reads the live Firestore
+  project first (needs its read quota).
+- **Test**: `npm run test:db` starts `wrangler dev` against a temporary local D1
+  directory and checks seeding, Firebase sign-in, a mutation and restart
+  persistence. It spends no Firestore reads.
+- **Cost**: the free tier allows 5 million rows read and 100,000 written per day,
+  far above this school's usage. There is no read-quota cliff like Firestore's
+  free tier.
 
-Recovery:
-
-- Move the Firebase project to Blaze (pay as you go). At this scale the monthly
-  cost stays inside the free allowance.
-- Or wait for the daily reset (midnight Pacific), keep browsers closed while it
-  happens, and avoid running `npm run test:db` against the live project: the
-  Firestore suite round-trips the whole dataset several times.
-
-Bulk edits are the other way to burn the quota. Prefer one import over hundreds
-of `PATCH` calls; a 445-student relabel through the API is thousands of writes
-once metadata and flushes are counted.
+Firestore is no longer used for school data. It remains the identity provider
+(Firebase Authentication) and the source for the one-time import.
 
 ---
 
@@ -1038,37 +1046,40 @@ npx wrangler secret bulk server/.dev.vars --config server/wrangler.jsonc
 
 | Secret | Purpose |
 | --- | --- |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin credentials for the REST layer |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Firebase Auth admin credentials (REST) |
 | `FIREBASE_API_KEY` | Web API key used to resolve ID tokens |
 | `CLOUDINARY_CLOUD_NAME` / `_API_KEY` / `_API_SECRET` | signed uploads and deletes |
 | `CORS_ORIGINS` | comma-separated teacher + admin + student origins |
 
 Variables (not secrets) live in `server/wrangler.jsonc`: `RUNTIME=workers`,
-`DATA_BACKEND=firestore`, `DISABLE_FILE_CACHE=true`.
+`DATA_BACKEND=d1`, `DISABLE_FILE_CACHE=true`, and the `DB` binding to
+`xchool-db`.
 
 After a `wrangler rollback`, re-run the `secret bulk` command: a Worker version
 created earlier can predate secrets added later, and the API will fail to boot
-without them. A boot that exceeds 20s now returns `503` instead of hanging.
+without them. A boot that exceeds 20s returns `503` instead of hanging.
 
 ### Why the API has a REST Firebase layer
 
-`firebase-admin` cannot run on Workers: its Firestore client speaks gRPC over
-raw TCP. `wrangler.jsonc` therefore aliases `firebase-admin/app|firestore|auth`
-to `server/src/workers/*`, which implement the same surface over Google's REST
-APIs (service-account JWT minted with WebCrypto, ID tokens validated through
-Identity Toolkit). The Node server keeps using the real Admin SDK.
+`firebase-admin` cannot run on Workers: the real Admin SDK assumes Node
+internals. `wrangler.jsonc` therefore aliases `firebase-admin/app` and
+`firebase-admin/auth` to `server/src/workers/*`, which implement the small slice
+the API uses over Google's REST APIs (a service-account JWT minted with
+WebCrypto validates ID tokens through Identity Toolkit). The Node server keeps
+using the real Admin SDK. School data does **not** go through Firebase: it is
+read and written with the D1 binding.
 
 `DISABLE_FILE_CACHE=true` turns off the local `db.json` mirror on Workers; the
-in-memory database is hydrated from Firestore on the first request, and
+in-memory database is hydrated from D1 on the first request, and
 `context.waitUntil(flushStore())` keeps each mutation alive until it is written.
 
 Cold-start safeguards, because a Worker call is the first request a teacher makes:
 
 - `OPTIONS` preflights never wait for the database, so CORS cannot fail during a
   slow boot.
-- Every Google call has an 8–10s timeout and one retry.
+- Every Google Auth call has a 10s timeout and one retry.
 - Boot is capped at 20s and returns `503` (with CORS headers) instead of hanging.
-- A Worker never falls back to seed data when Firestore is unreachable: a later
+- A Worker never falls back to seed data when D1 is unavailable: a later
   mutation would overwrite the real database. Node keeps its JSON fallback.
 - `/` on the API Worker returns a JSON description instead of trying to read
   project files that do not exist in the Workers runtime.

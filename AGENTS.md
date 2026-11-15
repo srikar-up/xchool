@@ -13,7 +13,7 @@ them into one Worker/Pages project and never serve one under a subpath of the ot
 | ------------- | ------------------------------------------- | ------------------------------------------ | ----------------- |
 | `teacher-app` | Vite + React SPA / PWA (mobile-first)       | its own Worker serving static assets       | `teacher.<domain>` |
 | `admin-panel` | Vite + React SPA / PWA (desktop-first)      | its own Worker serving static assets       | `admin.<domain>`   |
-| `server`      | Express JSON API (temporary local data layer) | its own Worker (`nodejs_compat`, or port to Hono) | `api.<domain>`     |
+| `server`      | Express API on Workers, data in Cloudflare D1 | its own Worker (`nodejs_compat`) + D1 binding | `api.<domain>`     |
 
 Why separate origins:
 

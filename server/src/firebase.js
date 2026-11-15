@@ -3,7 +3,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
 
 const __dirname = (() => {
   try {
@@ -15,12 +14,11 @@ const __dirname = (() => {
 const DEFAULT_KEY_FILE = path.resolve(__dirname, '../serviceAccountKey.json');
 
 /**
- * Firebase Admin bootstrap.
+ * Firebase Admin bootstrap (Authentication only).
  *
- * The Admin SDK bypasses Firestore security rules, which is the whole point of
- * this architecture: only this server can read or write the database, and the
- * browser talks to the Express API instead. Firestore rules therefore stay
- * "deny everything" for clients.
+ * The database lives in Cloudflare D1; Firebase is kept for sign-in. Only this
+ * server verifies ID tokens, and the Admin SDK is used for the school-issued
+ * student accounts.
  *
  * Credentials are resolved in this order:
  *   1. FIREBASE_SERVICE_ACCOUNT_JSON  - the whole service-account JSON as one line
@@ -56,22 +54,12 @@ function resolveCredential() {
 }
 
 let app = null;
-let db = null;
 
 export function getFirebaseApp() {
   if (!app) {
     app = getApps().length ? getApps()[0] : initializeApp({ credential: resolveCredential() });
   }
   return app;
-}
-
-export function adminDb() {
-  if (!db) {
-    getFirebaseApp();
-    db = getFirestore();
-    db.settings({ ignoreUndefinedProperties: true });
-  }
-  return db;
 }
 
 /** Firebase Auth (Admin) - used to verify ID tokens from the PWAs. */

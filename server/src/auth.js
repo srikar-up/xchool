@@ -111,13 +111,13 @@ export function studentPortalProblem(student) {
 }
 
 /**
- * Resolves the signed-in student, reloading Firestore when this isolate's copy
+ * Resolves the signed-in student, reloading D1 when this isolate's copy
  * has no link for the account yet.
  *
  * Administrators provision a login through one Worker isolate; the student's
  * next request can land on another isolate that booted earlier and therefore
  * still holds the record without `authUid`. Without the reload that student is
- * refused with "no student profile is linked" even though Firestore has the
+ * refused with "no student profile is linked" even though D1 has the
  * link. The reload happens only on a miss, so normal requests never pay for it.
  */
 export async function resolveStudentForRequest(decoded) {
@@ -129,7 +129,7 @@ export async function resolveStudentForRequest(decoded) {
 }
 
 /**
- * Resolves the signed-in staff member, reloading Firestore when this isolate's
+ * Resolves the signed-in staff member, reloading D1 when this isolate's
  * copy has no matching record yet.
  *
  * The same isolate-cache problem as students applies when an administrator
@@ -221,7 +221,7 @@ export async function requireActorOrStudent(req, res, next) {
   let student = actor ? null : resolveStudent(getDb(), decoded);
 
   // A student photo request has no staff record by design, so only reload when
-  // neither lookup matches: otherwise every upload would re-read Firestore.
+  // neither lookup matches: otherwise every upload would re-read D1.
   if (!actor && !student && decoded.uid) {
     const refreshed = await refreshStoreAsync();
     if (refreshed) {

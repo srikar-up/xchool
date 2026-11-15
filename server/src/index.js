@@ -18,7 +18,7 @@ import {
   trackCollection,
   trackRecord,
 } from './store.js';
-import { COLLECTION_KEYS, CONFIG_COLLECTIONS, LAYOUT_VERSION, RECORD_COLLECTIONS } from './firestore-store.js';
+import { COLLECTION_KEYS, CONFIG_COLLECTIONS, LAYOUT_VERSION, RECORD_COLLECTIONS } from './layout.js';
 import {
   requireActor,
   requireActorOrStudent,

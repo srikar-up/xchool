@@ -12,7 +12,7 @@ import {
   CONFIG_COLLECTIONS,
   MAX_DOCUMENT_BYTES,
   RECORD_COLLECTIONS,
-} from './firestore-store.js';
+} from './layout.js';
 
 function bytes(value) {
   const text = JSON.stringify(value);

@@ -7,13 +7,19 @@
   "alias": {
     "iconv-lite": "./src/iconv-lite-stub.js",
     "firebase-admin/app": "./src/workers/firebase-app-stub.js",
-    "firebase-admin/firestore": "./src/workers/firebase-firestore-stub.js",
     "firebase-admin/auth": "./src/workers/firebase-auth-stub.js"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "xchool-db",
+      "database_id": "54b2bef7-12df-406f-8f78-201135ab3760"
+    }
+  ],
   "vars": {
     "PORT": "4000",
     "RUNTIME": "workers",
-    "DATA_BACKEND": "firestore",
+    "DATA_BACKEND": "d1",
     "DISABLE_FILE_CACHE": "true",
     "FIREBASE_PROJECT_ID": "thiangle-349e7"
   },

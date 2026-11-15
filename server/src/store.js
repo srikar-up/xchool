@@ -8,14 +8,19 @@ import { migrateIdentity } from './identity.js';
 import { isoDaysAgo, pruneAttendanceRecords } from './maintenance.js';
 import {
   COLLECTION_KEYS,
-  FIRESTORE_ROOT,
   LAYOUT_VERSION,
   RECORD_COLLECTIONS,
-  clearFirestore,
-  isFirestoreEnabled,
-  loadDbFromFirestore,
-  saveDbToFirestore,
-} from './firestore-store.js';
+} from './layout.js';
+import { clearD1, isD1Enabled, loadDbFromD1, saveDbToD1 } from './d1-store.js';
+
+/* ------------------------------------------------------------------ */
+/* Storage backends                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Name shown in logs and `/api/health`. */
+function remoteLabel() {
+  return 'd1';
+}
 
 // import.meta.url is undefined in the Workers bundle; the directory is only
 // used by the Node server (JSON cache and static app paths).
@@ -57,8 +62,8 @@ const REFRESH_COOLDOWN_MS = 5000;
 
 /**
  * Local JSON mirror. Disabled on Workers (`DISABLE_FILE_CACHE=true`) where the
- * filesystem is read-only - the in-memory database is the working copy and
- * Firestore is the source of truth.
+ * filesystem is read-only - the in-memory database is the working copy and D1
+ * is the source of truth.
  */
 const FILE_CACHE = String(process.env.DISABLE_FILE_CACHE || '').toLowerCase() !== 'true';
 
@@ -128,8 +133,8 @@ function currentTracking() {
 
 /**
  * Marks one record as changed. Endpoints call this inside `mutate` so a
- * single attendance register or mark writes one Firestore document, not the
- * whole collection.
+ * single attendance register or mark writes one D1 row, not the whole
+ * collection.
  */
 export function trackRecord(collection, id, kind = 'set') {
   if (!id || !COLLECTION_KEYS.includes(collection)) return;
@@ -347,12 +352,12 @@ export function getJournalBounds() {
 /* ------------------------------------------------------------------ */
 
 /**
- * Mirrors the in-memory database into Firestore.
+ * Mirrors the in-memory database into D1.
  * Serialized through a promise chain so writes never overlap or arrive out of
  * order. Returns the queued promise so callers can await durability.
  */
-function queueFirestoreSync(changes = null) {
-  if (!isFirestoreEnabled()) return Promise.resolve();
+function queueRemoteSync(changes = null) {
+  if (!isD1Enabled()) return Promise.resolve();
 
   const snapshot = db;
   const queued = mergeChanges(
@@ -362,19 +367,20 @@ function queueFirestoreSync(changes = null) {
   retryChanges = null;
   changeSequence += 1;
   const sequence = changeSequence;
+  const label = remoteLabel();
 
   syncQueue = syncQueue
     .then(async () => {
-      const result = await saveDbToFirestore(snapshot, lastSynced, queued);
+      const result = await saveDbToD1(snapshot, lastSynced, queued);
       lastSynced = structuredClone(snapshot);
       lastSyncAt = new Date().toISOString();
       lastSyncError = null;
       lastSyncResult = result;
       if (result.writes || result.deletes) {
         console.log(
-          `[firestore] saved ${result.writes} document(s)${
+          `[${label}] saved ${result.writes} row(s)${
             result.deletes ? `, deleted ${result.deletes}` : ''
-          }${result.migrated ? ' (layout v2 migration)' : ''}`
+          }`
         );
       }
     })
@@ -383,7 +389,7 @@ function queueFirestoreSync(changes = null) {
       // Keep the tracked changes so the next mutation retries them. The
       // in-memory state is still the source of truth for this isolate.
       retryChanges = mergeChanges(retryChanges || emptyChanges(), queued);
-      console.error('[firestore] sync failed:', error.message);
+      console.error(`[${label}] sync failed:`, error.message);
     });
 
   return syncQueue;
@@ -422,17 +428,19 @@ export function initStore({ force = false } = {}) {
 }
 
 /**
- * Boot loader. Uses Firestore when DATA_BACKEND=firestore, otherwise the local
- * JSON file. Falls back to JSON if Firestore is unreachable so the API still starts.
+ * Boot loader. Uses D1 when configured, otherwise the local JSON file. A
+ * remote backend is never silently replaced by JSON: serving seed data from a
+ * Worker would overwrite the real database on the first mutation.
  *
  * The initial seed upload is awaited: a process that exits right after seeding
  * must not lose the write.
  */
 export async function initStoreAsync({ force = false } = {}) {
-  if (!isFirestoreEnabled()) return initStore({ force });
+  if (!isD1Enabled()) return initStore({ force });
 
+  const label = remoteLabel();
   try {
-    const remote = force ? null : await loadDbFromFirestore();
+    const remote = force ? null : await loadDbFromD1();
 
     if (remote && remote.meta?.schemaVersion === SCHEMA_VERSION) {
       db = remote;
@@ -443,10 +451,8 @@ export async function initStoreAsync({ force = false } = {}) {
 
       if (needsLayoutMigration) {
         db.meta = { ...db.meta, layoutVersion: LAYOUT_VERSION };
-        console.log(
-          `[data] Migrating Firestore to per-record layout v${LAYOUT_VERSION}...`
-        );
-        await saveDbToFirestore(db, null);
+        console.log(`[data] Migrating ${label} to per-record layout v${LAYOUT_VERSION}...`);
+        await saveDbToD1(db, null);
         lastSynced = structuredClone(db);
         lastSyncAt = new Date().toISOString();
         lastSyncResult = { migrated: true };
@@ -455,18 +461,18 @@ export async function initStoreAsync({ force = false } = {}) {
         // key, so the old documents have to be deleted as well as written.
         const changes = emptyChanges();
         changes.full = true;
-        await saveDbToFirestore(db, lastSynced, changes);
+        await saveDbToD1(db, lastSynced, changes);
         lastSynced = structuredClone(db);
         lastSyncAt = new Date().toISOString();
         lastSyncResult = { migrated: true, identity: true };
         console.log(
-          `[data] Renumbered ${identity.students} student(s) and ${identity.staff} staff member(s) in Firestore.`
+          `[data] Renumbered ${identity.students} student(s) and ${identity.staff} staff member(s) in ${label}.`
         );
       } else if (curriculaChanged) {
         const changes = emptyChanges();
         changes.collections.add('curricula');
         changes.collections.add('meta');
-        await queueFirestoreSync(changes);
+        await queueRemoteSync(changes);
       }
 
       const pruned = applyAttendanceRetention(db);
@@ -478,7 +484,7 @@ export async function initStoreAsync({ force = false } = {}) {
         const deleted = new Map();
         pruned.forEach((session) => deleted.set(session.id, 'delete'));
         changes.records.set('attendanceSessions', deleted);
-        await saveDbToFirestore(db, lastSynced, changes);
+        await saveDbToD1(db, lastSynced, changes);
         lastSynced = structuredClone(db);
         lastSyncAt = new Date().toISOString();
         console.log(
@@ -487,7 +493,7 @@ export async function initStoreAsync({ force = false } = {}) {
       }
 
       console.log(
-        `[data] Loaded from Firestore - revision ${db.meta.revision}, ${db.students.length} students.`
+        `[data] Loaded from ${label} - revision ${db.meta.revision}, ${db.students.length} students.`
       );
       return db;
     }
@@ -496,39 +502,41 @@ export async function initStoreAsync({ force = false } = {}) {
     db.meta.layoutVersion = LAYOUT_VERSION;
     persist();
     console.log(
-      `[data] Seeded Firestore - ${db.students.length} students, ${db.staff.length} staff.`
+      `[data] Seeded ${label} - ${db.students.length} students, ${db.staff.length} staff.`
     );
-    await saveDbToFirestore(db, null);
+    await saveDbToD1(db, null);
     lastSynced = structuredClone(db);
     lastSyncAt = new Date().toISOString();
     return db;
   } catch (error) {
-    // Never serve seed data from a Worker: a mutation would then overwrite the
-    // real Firestore database. Fail the request instead and let it retry.
-    if (String(process.env.RUNTIME || '') === 'workers') {
-      throw new Error(`Firestore is unavailable: ${error.message}`);
+    // Never serve seed data from the remote database: a mutation would then
+    // overwrite the real school. Fail the request instead and let it retry.
+    // D1 gets the same treatment: silently switching to JSON would make local
+    // tests look like they persisted when they did not.
+    if (String(process.env.RUNTIME || '') === 'workers' || isD1Enabled()) {
+      throw new Error(`The ${label} database is unavailable: ${error.message}`);
     }
-    console.warn(`[firestore] boot failed (${error.message}); falling back to local JSON.`);
+    console.warn(`[${label}] boot failed (${error.message}); falling back to local JSON.`);
     return initStore({ force });
   }
 }
 
 /**
- * Re-reads Firestore into this isolate.
+ * Re-reads D1 into this isolate.
  *
  * A Worker isolate keeps one in-memory database for its whole lifetime, so an
  * isolate that booted before another isolate wrote a record keeps serving the
  * old copy. That is harmless for slowly changing data but not for a portal
  * login: an administrator provisions a student on one isolate and the student's
  * first request may land on another, which would refuse access even though the
- * link exists in Firestore.
+ * link exists in D1.
  *
  * Call this when a lookup misses and the record may have been written remotely.
  * It is rare (once per isolate per changed login) and concurrent callers share
  * one reload. No-op on the JSON backend, where there is a single process.
  */
 export function refreshStoreAsync() {
-  if (!isFirestoreEnabled()) return Promise.resolve(false);
+  if (!isD1Enabled()) return Promise.resolve(false);
   if (refreshing) return refreshing;
   // A token with no linked record would otherwise trigger one full read per
   // request: bound the cost per isolate.
@@ -536,9 +544,9 @@ export function refreshStoreAsync() {
   lastRefreshAt = Date.now();
 
   refreshing = (async () => {
-    // Never reload over a mutation that has not reached Firestore yet.
+    // Never reload over a mutation that has not reached the remote store yet.
     await syncQueue.catch(() => {});
-    const remote = await loadDbFromFirestore();
+    const remote = await loadDbFromD1();
     if (!remote || remote.meta?.schemaVersion !== SCHEMA_VERSION) return false;
     db = remote;
     lastSynced = structuredClone(remote);
@@ -606,7 +614,7 @@ export function mutate(mutator, { full = false } = {}) {
   const event = buildChangeEvent(current, changes);
   rememberEvent(event);
   persist();
-  queueFirestoreSync(changes);
+  queueRemoteSync(changes);
   storeEvents.emit('change', event);
   return current;
 }
@@ -627,11 +635,12 @@ export function resetStore() {
   };
   rememberEvent(event);
 
-  if (isFirestoreEnabled()) {
+  if (isD1Enabled()) {
+    const label = remoteLabel();
     syncQueue = syncQueue
       .then(async () => {
-        await clearFirestore();
-        const result = await saveDbToFirestore(db, null);
+        await clearD1();
+        const result = await saveDbToD1(db, null);
         lastSynced = structuredClone(db);
         lastSyncAt = new Date().toISOString();
         lastSyncError = null;
@@ -641,7 +650,7 @@ export function resetStore() {
         lastSyncError = error.message;
         retryChanges = emptyChanges();
         retryChanges.full = true;
-        console.error('[firestore] reset failed:', error.message);
+        console.error(`[${label}] reset failed:`, error.message);
       });
   }
 
@@ -650,15 +659,15 @@ export function resetStore() {
 }
 
 export function getDatabaseFile() {
-  return isFirestoreEnabled() ? `firestore://${FIRESTORE_ROOT}` : DATABASE_FILE;
+  return isD1Enabled() ? 'd1://xchool-db' : DATABASE_FILE;
 }
 
 /** Name of the active persistence backend, for logs and /api/health. */
 export function getBackendName() {
-  return isFirestoreEnabled() ? 'firestore' : 'local-json';
+  return isD1Enabled() ? 'd1' : 'local-json';
 }
 
-/** Resolves once every queued Firestore write has settled. */
+/** Resolves once every queued remote write has settled. */
 export function flushStore() {
   return syncQueue;
 }

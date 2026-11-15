@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import { buildScaleFixture, measureScale } from '../src/scale.js';
-import { MAX_DOCUMENT_BYTES, RECORD_COLLECTIONS } from '../src/firestore-store.js';
+import { MAX_DOCUMENT_BYTES, RECORD_COLLECTIONS } from '../src/layout.js';
 
 const db = buildScaleFixture();
 const report = measureScale(db);
@@ -15,7 +15,7 @@ describe('1,000 students / 50 teachers scale model', () => {
     assert.equal(report.collections.testRecords.rows, 4000);
   });
 
-  test('no Firestore document crosses the safety limit', () => {
+  test('no stored row crosses the safety limit', () => {
     assert.equal(report.overLimit, false);
     for (const [key, entry] of Object.entries(report.collections)) {
       assert.ok(
@@ -24,7 +24,7 @@ describe('1,000 students / 50 teachers scale model', () => {
       );
       assert.ok(
         entry.documentBytes < 1024 * 1024,
-        `${key} would cross Firestore's 1 MiB document limit`
+        `${key} would cross the storage safety limit`
       );
     }
   });
@@ -64,7 +64,7 @@ describe('1,000 students / 50 teachers scale model', () => {
     assert.ok(report.writesPerMarksSubmission < 50);
   });
 
-  test('the full term fits comfortably in Firestore storage', () => {
+  test('the full term fits comfortably in D1 storage', () => {
     assert.ok(report.totalStateBytes < 20 * 1024 * 1024);
   });
 });

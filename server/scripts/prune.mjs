@@ -6,7 +6,7 @@
  *   node --env-file-if-exists=server/.env server/scripts/prune.mjs --before 2026-01-01 --yes
  *
  * It is a dry run unless `--yes` is passed. Attendance is deleted per record so
- * the Firestore write stays small; the audit log is capped separately.
+ * the D1 write stays small; the audit log is capped separately.
  */
 import {
   flushStore,

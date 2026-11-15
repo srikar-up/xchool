@@ -1,22 +1,19 @@
 /**
- * Firebase access for the Workers runtime.
+ * Firebase Authentication for the Workers runtime.
  *
- * firebase-admin cannot run on Workers: its Firestore client speaks gRPC, which
- * needs raw TCP, and google-gax assumes CommonJS globals at load time. This
- * module implements the small slice the API actually uses, over Google's REST
- * endpoints, behind the same shape as the Admin SDK:
+ * The real Admin SDK assumes Node internals that Workers do not provide, so
+ * this module implements the small slice the API uses over Google's REST APIs:
  *
- *   adminDb().collection('school').doc('staff').get() / .set() / batch()
  *   adminAuth().verifyIdToken(token)
+ *   adminAuth().createUser() / getUserByEmail() / updateUser()
  *
- * Credentials: FIREBASE_SERVICE_ACCOUNT_JSON (a Worker secret). Access tokens
- * are minted with WebCrypto RS256 and cached until shortly before expiry.
+ * School data does not go through this module - it lives in D1. Credentials
+ * come from FIREBASE_SERVICE_ACCOUNT_JSON (a Worker secret); access tokens are
+ * minted with WebCrypto RS256 and cached until shortly before expiry.
  */
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const SCOPE = 'https://www.googleapis.com/auth/datastore';
 const IDENTITY_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit';
-const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1';
 const IDENTITY_BASE = 'https://identitytoolkit.googleapis.com/v1';
 
 let serviceAccountCache;
@@ -145,173 +142,10 @@ async function mintAccessToken(scope) {
   return body.access_token;
 }
 
-export async function googleAccessToken(scope = SCOPE) {
+async function googleAccessToken(scope) {
   const cached = accessTokens.get(scope);
   if (cached && Date.now() < cached.expiresAt) return cached.token;
   return mintAccessToken(scope);
-}
-
-/* ------------------------------------------------------------------ */
-/* Firestore value encoding                                            */
-/* ------------------------------------------------------------------ */
-
-function encodeValue(value) {
-  if (value === null || value === undefined) return { nullValue: null };
-  if (typeof value === 'string') return { stringValue: value };
-  if (typeof value === 'boolean') return { booleanValue: value };
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value };
-  }
-  if (Array.isArray(value)) return { arrayValue: { values: value.map(encodeValue) } };
-  if (typeof value === 'object') {
-    const fields = {};
-    for (const [key, entry] of Object.entries(value)) {
-      if (entry === undefined) continue;
-      fields[key] = encodeValue(entry);
-    }
-    return { mapValue: { fields } };
-  }
-  return { nullValue: null };
-}
-
-function decodeValue(value) {
-  if (!value || typeof value !== 'object') return null;
-  if ('nullValue' in value) return null;
-  if ('stringValue' in value) return value.stringValue;
-  if ('booleanValue' in value) return value.booleanValue;
-  if ('integerValue' in value) return Number(value.integerValue);
-  if ('doubleValue' in value) return value.doubleValue;
-  if ('timestampValue' in value) return value.timestampValue;
-  if ('arrayValue' in value) return (value.arrayValue.values || []).map(decodeValue);
-  if ('mapValue' in value) return decodeFields(value.mapValue.fields || {});
-  return null;
-}
-
-function decodeFields(fields) {
-  const result = {};
-  for (const [key, value] of Object.entries(fields)) result[key] = decodeValue(value);
-  return result;
-}
-
-function documentName(path) {
-  return `projects/${projectId()}/databases/(default)/documents/${path}`;
-}
-
-async function firestoreFetch(path, options = {}) {
-  const token = await googleAccessToken();
-  const response = await googleFetch(`${FIRESTORE_BASE}/${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-  return response;
-}
-
-/* ------------------------------------------------------------------ */
-/* Admin-SDK-compatible surface                                        */
-/* ------------------------------------------------------------------ */
-
-function collectionRef(path) {
-  return {
-    doc(id) {
-      return documentRef(`${path}/${id}`);
-    },
-    /**
-     * Lists every document in a collection, following page tokens.
-     * The Admin SDK exposes the same `{ docs: [{ id, data() }] }` shape,
-     * so the persistence layer can use one code path on Node and Workers.
-     */
-    async get() {
-      const docs = [];
-      let pageToken = '';
-      do {
-        const params = new URLSearchParams({ pageSize: '300' });
-        if (pageToken) params.set('pageToken', pageToken);
-        const response = await firestoreFetch(`${documentName(path)}?${params.toString()}`);
-        if (response.status === 404) break;
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(
-            `Firestore list failed (${response.status}): ${body?.error?.message || ''}`
-          );
-        }
-        for (const doc of body.documents || []) {
-          const id = doc.name.split('/').pop();
-          const data = decodeFields(doc.fields || {});
-          docs.push({ id, data: () => data });
-        }
-        pageToken = body.nextPageToken || '';
-      } while (pageToken);
-      return { docs, size: docs.length, empty: docs.length === 0 };
-    },
-  };
-}
-
-function documentRef(path) {
-  return {
-    name: documentName(path),
-    collection(sub) {
-      return collectionRef(`${path}/${sub}`);
-    },
-    async get() {
-      const response = await firestoreFetch(documentName(path));
-      if (response.status === 404) {
-        return { exists: false, data: () => undefined };
-      }
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(`Firestore read failed (${response.status}): ${body?.error?.message || ''}`);
-      }
-      const data = decodeFields(body.fields || {});
-      return { exists: true, data: () => data };
-    },
-    toWrite(data, options = {}) {
-      const write = {
-        update: { name: documentName(path), fields: encodeValue(data).mapValue.fields },
-      };
-      if (options && options.merge) {
-        write.updateMask = { fieldPaths: Object.keys(data) };
-      }
-      return write;
-    },
-  };
-}
-
-export function createRestFirestore() {
-  return {
-    settings() {},
-    collection(root) {
-      return collectionRef(root);
-    },
-    batch() {
-      const writes = [];
-      return {
-        set(ref, data, options) {
-          writes.push(ref.toWrite(data, options));
-        },
-        delete(ref) {
-          writes.push({ delete: ref.name });
-        },
-        async commit() {
-          if (!writes.length) return [];
-          const response = await firestoreFetch(
-            `projects/${projectId()}/databases/(default)/documents:commit`,
-            { method: 'POST', body: JSON.stringify({ writes }) }
-          );
-          const body = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            throw new Error(
-              `Firestore write failed (${response.status}): ${body?.error?.message || ''}`
-            );
-          }
-          return body.writeResults || [];
-        },
-      };
-    },
-  };
 }
 
 /* ------------------------------------------------------------------ */

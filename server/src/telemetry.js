@@ -3,7 +3,7 @@
  *
  * The admin console uses this to spot an account that is hammering the API
  * (a tab left open on a short poll, a broken retry loop, a script) before it
- * costs Firestore quota. Counters are kept in the isolate's memory: they are a
+ * adds load to D1. Counters are kept in the isolate's memory: they are a
  * live operational signal, not an audit trail, and they reset whenever the
  * Worker is recycled.
  *

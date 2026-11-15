@@ -28,7 +28,7 @@
     "deploy:student": "npm --workspace student-app run deploy",
     "test:api": "node server/smoke-test.mjs",
     "test:ui": "node server/ui-test.mjs",
-    "test:db": "npm --workspace server run test:db",
+    "test:db": "node server/test/d1.e2e.mjs",
     "test:auth": "npm --workspace server run test:auth",
     "test:attendance": "node --test server/test/attendance-mode.test.mjs",
     "test:attendance:api": "node server/test/attendance-mode.e2e.mjs",
@@ -58,7 +58,8 @@
     "test:student:prod": "node server/test/student-production.e2e.mjs",
     "test:student:unit": "node --test server/test/student-portal.test.mjs",
     "test:load": "node server/scripts/load-test.mjs",
-    "test:production": "node server/test/production.e2e.mjs"
+    "test:production": "node server/test/production.e2e.mjs",
+    "import:d1": "npm --workspace server run import:d1"
   },
   "devDependencies": {
     "cf": "^0.15.0",

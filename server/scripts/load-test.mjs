@@ -6,13 +6,16 @@
  *   node server/scripts/load-test.mjs --students 1500 --days 90
  *
  * The default is a pure model: it builds a realistic term in memory and prints
- * document sizes, cold-start reads and write amplification. It does not touch
- * Firestore, so it is safe to run anywhere.
+ * document sizes, cold-start reads and write amplification. It touches no
+ * database, so it is safe to run anywhere.
  *
- * `--write --yes` performs a real Firestore write into an isolated namespace
- * named `school_loadtest_*`. It is intentionally guarded because writing ~10k
- * documents costs money on a production project.
+ * `--write --yes` saves the generated fixture as JSON next to the local
+ * database (`server/data/loadtest.json`). Point `DATA_DIR` at a directory that
+ * contains it as `db.json` to boot the API against the fixture.
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildScaleFixture, measureScale } from '../src/scale.js';
 
 function arg(name, fallback = '') {
@@ -74,22 +77,10 @@ if (process.argv.includes('--write')) {
     console.error('Refusing to write without --yes.');
     process.exit(1);
   }
-  const root = String(process.env.FIRESTORE_ROOT || '');
-  if (!root.startsWith('school_loadtest_')) {
-    console.error('Set FIRESTORE_ROOT to an isolated school_loadtest_* namespace first.');
-    process.exit(1);
-  }
-  process.env.DATA_BACKEND = 'firestore';
-  const { saveDbToFirestore, clearFirestore } = await import('../src/firestore-store.js');
-  const started = Date.now();
-  const result = await saveDbToFirestore(db, null);
-  console.log(
-    `Wrote ${result.writes} document(s), deleted ${result.deletes} legacy document(s) in ${
-      Date.now() - started
-    } ms.`
-  );
-  if (process.argv.includes('--clean')) {
-    await clearFirestore();
-    console.log('Removed the load-test namespace.');
-  }
+  const dataDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../data');
+  fs.mkdirSync(dataDir, { recursive: true });
+  const target = path.join(dataDir, 'loadtest.json');
+  fs.writeFileSync(target, JSON.stringify(db, null, 2), 'utf8');
+  console.log(`Wrote the fixture to ${target}.`);
+  console.log('Copy it to db.json in a DATA_DIR of your choice to boot against it.');
 }
