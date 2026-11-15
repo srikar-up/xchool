@@ -131,6 +131,15 @@ export const api = {
 
   me: () => request('/api/student/me'),
   getBootstrap: () => request('/api/student/bootstrap'),
+  /**
+   * School-wide switches. Public on purpose: the login screen has to know
+   * whether the portal is open before anyone can sign in.
+   */
+  publicConfig: async () => {
+    const response = await fetch(`${API_BASE}/api/public/config`, { cache: 'no-store' });
+    if (!response.ok) throw new Error('Cannot read the school configuration.');
+    return response.json();
+  },
   getChanges: (since) =>
     request(`/api/student/changes?since=${encodeURIComponent(since)}`),
   health: async () => {

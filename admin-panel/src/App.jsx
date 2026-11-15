@@ -18,6 +18,7 @@ import Announcements from './pages/Announcements';
 import Requests from './pages/Requests';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Advanced from './pages/Advanced';
 
 const DataExchange = lazy(() => import('./pages/DataExchange'));
 
@@ -62,6 +63,7 @@ export default function App() {
                 }
               />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/advanced" element={<Advanced />} />
               <Route path="*" element={<Navigate to="/overview" replace />} />
             </Route>
           </Route>

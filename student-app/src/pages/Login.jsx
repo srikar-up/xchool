@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useStudentData } from '../context/StudentDataContext';
+import { api } from '../lib/api';
 
 /**
  * Optional demo shortcut. It only appears when the deployment sets both
@@ -46,12 +47,70 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [config, setConfig] = useState(null);
+  const [configError, setConfigError] = useState('');
+  const [checking, setChecking] = useState(true);
+
+  const checkConfig = async () => {
+    setChecking(true);
+    try {
+      setConfig(await api.publicConfig());
+      setConfigError('');
+    } catch (loadError) {
+      setConfigError(loadError.message);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   useEffect(() => {
     document.title = 'Sign in · Xchool Student';
+    checkConfig();
+    // The switch is a school-wide flag; one read on mount is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (session) return <Navigate to="/" replace />;
+
+  if (config && config.studentPortalEnabled === false) {
+    return (
+      <div className="login-screen">
+        <div className="login-orb login-orb-one" aria-hidden="true" />
+        <div className="login-orb login-orb-two" aria-hidden="true" />
+        <div className="login-content">
+          <div className="login-brand">
+            <span className="login-logo">
+              <img src={`${import.meta.env.BASE_URL}school-logo.jpg`} alt="Xchool crest" />
+            </span>
+            <div>
+              <strong>Xchool</strong>
+              <small>Student Portal</small>
+            </div>
+          </div>
+
+          <section className="login-card login-closed" aria-live="polite">
+            <span className="login-closed-icon">
+              <LockKeyhole size={24} />
+            </span>
+            <h2>Portal closed</h2>
+            <p>
+              {config.message ||
+                'The school has switched the student portal off. Please contact the school office.'}
+            </p>
+            {config.schoolName ? <small>{config.schoolName}</small> : null}
+            <button
+              type="button"
+              className="btn btn-ghost btn-block"
+              onClick={checkConfig}
+              disabled={checking}
+            >
+              {checking ? 'Checking…' : 'Check again'}
+            </button>
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   const go = () => navigate(location.state?.from || '/', { replace: true });
 

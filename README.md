@@ -913,6 +913,52 @@ users and uses a temporary JSON database; it never writes to live Firestore.
 
 ---
 
+## Advanced settings (admin)
+
+**Admin → Advanced** is the SuperAdmin control room. It has two parts.
+
+### Student app switch
+
+One toggle turns the whole student portal on or off. The flag is
+`meta.studentPortalEnabled`, so every Worker isolate reads it with the rest of
+the database and no deploy is needed.
+
+- Off: every `/api/student/*` call returns `503` with
+  `code: "STUDENT_PORTAL_DISABLED"`, and the student app shows a "Portal
+  closed" screen instead of the sign-in form.
+- Staff, attendance, marks and the teacher/admin apps are unaffected.
+- `GET /api/public/config` is public and returns the switch plus the school
+  name, which is how the student login screen learns about it before sign-in.
+
+### Developer console
+
+The API counts authenticated calls per account in a one-minute sliding window
+(`server/src/telemetry.js`) and exposes them at `GET /api/telemetry`
+(SuperAdmin). The console refreshes every ten seconds and shows, per account:
+
+- requests in the window and total since the isolate started
+- the last endpoint and status
+- last seen time
+
+A tab left polling on a short interval, or a retry loop, stands out at the top
+of the list. **Block** sets `apiBlocked` on that staff or student record:
+`requireActor`, `requireStudent` and `requireActorOrPhoto` then answer `403`
+with `code: "ACCOUNT_BLOCKED"`. **Unblock** restores access immediately. A
+SuperAdmin cannot block their own account.
+
+Counters are per isolate: a school large enough to run several isolates sees a
+separate list on each one. The block itself is stored with the record, so it
+applies everywhere.
+
+| Endpoint | Who | Purpose |
+| --- | --- | --- |
+| `GET /api/public/config` | anyone | school name + student switch |
+| `PATCH /api/access` | SuperAdmin | `{ studentPortalEnabled: true\|false }` |
+| `GET /api/telemetry` | SuperAdmin | per-account request counters |
+| `POST /api/telemetry/block` | SuperAdmin | `{ kind, id, blocked, reason }` |
+
+---
+
 ## Deployment (Cloudflare Workers)
 
 Four independent Workers, four separate origins:

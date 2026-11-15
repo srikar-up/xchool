@@ -148,6 +148,17 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/health`, { cache: 'no-store' });
     return response.json();
   },
+
+  /** Advanced settings: the school-wide student portal switch. */
+  setStudentPortal: (studentPortalEnabled) =>
+    request('/api/access', { method: 'PATCH', body: { studentPortalEnabled } }),
+
+  /** Developer console: per-account request counters. */
+  getTelemetry: () => request('/api/telemetry'),
+
+  /** Blocks or unblocks one account (staff or student) from the API. */
+  blockAccount: (payload) =>
+    request('/api/telemetry/block', { method: 'POST', body: payload }),
   getStudents: (params = {}) =>
     request(`/api/students?${new URLSearchParams(params).toString()}`),
   getAttendance: (params = {}) =>

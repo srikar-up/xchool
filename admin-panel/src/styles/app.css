@@ -8785,3 +8785,46 @@
 .student-login-result > div { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--slate-50); border: 1px solid var(--slate-200); }
 .student-login-result span { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .student-login-result code { font-size: 12px; color: #1e293b; word-break: break-all; }
+
+/* ---- advanced settings / developer console ------------------------- */
+.advanced-page { display: grid; gap: 16px; }
+.advanced-access-card .admin-card-head { align-items: flex-start; }
+.advanced-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; border: 1px solid var(--slate-200); border-radius: 12px; background: var(--slate-50); }
+.advanced-switch-row strong { display: block; font-size: 12.5px; color: #1e293b; }
+.advanced-switch-row small { color: var(--muted); font-size: 10.5px; }
+.advanced-switch { position: relative; flex: 0 0 auto; width: 52px; height: 28px; border: 0; border-radius: 999px; background: #cbd5e1; cursor: pointer; transition: background .18s ease; }
+.advanced-switch span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .25); transition: transform .18s ease; }
+.advanced-switch.on { background: #0d9488; }
+.advanced-switch.on span { transform: translateX(24px); }
+.advanced-switch:disabled { opacity: .6; cursor: progress; }
+.advanced-console-actions { display: flex; align-items: center; gap: 10px; }
+.advanced-updated { color: var(--muted); font-size: 10.5px; }
+.advanced-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+.advanced-stat { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border: 1px solid var(--slate-200); border-radius: 11px; background: #fff; }
+.advanced-stat svg { color: #0d9488; flex: 0 0 auto; }
+.advanced-stat strong { display: block; font-size: 17px; color: #0f172a; line-height: 1.1; }
+.advanced-stat span { color: var(--muted); font-size: 10px; }
+.advanced-filter { display: flex; align-items: center; gap: 8px; margin: 10px 0; padding: 8px 11px; border: 1px solid var(--slate-200); border-radius: 10px; background: #fff; }
+.advanced-filter svg { color: var(--muted); flex: 0 0 auto; }
+.advanced-filter input { flex: 1; border: 0; outline: none; font: inherit; font-size: 12px; background: transparent; }
+.advanced-count { color: var(--muted); font-size: 10.5px; white-space: nowrap; }
+.advanced-error { display: flex; align-items: center; gap: 6px; margin: 8px 0; color: #b91c1c; font-size: 11.5px; }
+.advanced-table-wrap { overflow-x: auto; border: 1px solid var(--slate-200); border-radius: 12px; }
+.advanced-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.advanced-table th { padding: 9px 11px; background: var(--slate-50); text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--slate-200); white-space: nowrap; }
+.advanced-table td { padding: 9px 11px; border-bottom: 1px solid var(--slate-100); vertical-align: middle; }
+.advanced-table tr:last-child td { border-bottom: 0; }
+.advanced-table td strong { display: block; color: #1e293b; font-size: 11.5px; }
+.advanced-table td small { display: block; color: var(--muted); font-size: 9.5px; }
+.advanced-table code { padding: 1px 4px; border-radius: 4px; background: var(--slate-100); font-size: 10px; color: #334155; }
+.advanced-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.advanced-table .num.hot { color: #b91c1c; }
+.advanced-table .actions { text-align: right; }
+.advanced-table tr.blocked { background: #fef2f2; }
+.advanced-empty { margin: 12px 0; padding: 22px; border: 1px dashed var(--slate-300); border-radius: 12px; text-align: center; color: var(--muted); font-size: 11.5px; }
+.advanced-note { margin: 10px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.advanced-block-dialog { display: grid; gap: 10px; }
+.advanced-block-dialog p { margin: 0; color: #334155; font-size: 12px; line-height: 1.6; }
+.advanced-block-dialog label { display: grid; gap: 4px; }
+.advanced-block-dialog label span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.advanced-block-dialog input { padding: 8px 10px; border: 1px solid var(--slate-200); border-radius: 8px; font: inherit; font-size: 12px; }

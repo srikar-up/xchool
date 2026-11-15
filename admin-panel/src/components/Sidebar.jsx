@@ -15,6 +15,7 @@ import {
   Megaphone,
   Monitor,
   Settings,
+  ShieldAlert,
   Users,
 } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
@@ -69,6 +70,9 @@ export default function Sidebar({ open, onClose }) {
       items: [
         { to: '/reports', label: 'Reports', icon: BarChart3 },
         { to: '/data', label: 'Data exchange', icon: Database },
+        ...(permissions.superAdmin
+          ? [{ to: '/advanced', label: 'Advanced', icon: ShieldAlert }]
+          : []),
       ],
     },
   ];

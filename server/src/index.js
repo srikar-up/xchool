@@ -28,6 +28,12 @@ import { adminAuth } from './firebase.js';
 import { buildStudentBootstrap, publicStudent, studentChangeRelevant } from './student-data.js';
 import { corsDelegate, hasConfiguredOrigins } from './cors.js';
 import {
+  STUDENT_PORTAL_DISABLED_MESSAGE,
+  parseSwitch,
+  studentPortalEnabled,
+} from './settings.js';
+import { recordRequest, telemetrySnapshot } from './telemetry.js';
+import {
   PHOTO_FOLDERS,
   buildSignedUpload,
   destroyAsset,
@@ -90,6 +96,26 @@ const PORT = Number(process.env.PORT || 4000);
 const app = express();
 app.use(cors(corsDelegate));
 app.use(express.json({ limit: '8mb' }));
+
+// Per-account request counters for the admin developer console. Counted after
+// authentication has run, so an anonymous probe never creates an entry.
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    const subject = req.actor
+      ? { kind: 'staff', id: req.actor.id, name: req.actor.name }
+      : req.student
+        ? { kind: 'student', id: req.student.id, name: req.student.name }
+        : null;
+    if (!subject) return;
+    recordRequest({
+      ...subject,
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+    });
+  });
+  next();
+});
 
 const ADMIN_LEVELS = new Set(['SuperAdmin', 'SubAdmin']);
 const ATTENDANCE_STATUSES = new Set(['present', 'absent', 'late', 'excused']);
@@ -228,6 +254,24 @@ function nextAnnouncementId(db) {
 /* ------------------------------------------------------------------ */
 /* Auth                                                               */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Unauthenticated, read-only flags for the student shell. The login screen has
+ * to know whether the portal is open before anyone can sign in, and it must
+ * never expose anything beyond the school's display name.
+ */
+app.get('/api/public/config', (req, res) => {
+  const db = getDb();
+  const enabled = studentPortalEnabled(db);
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    schoolName: db.meta.schoolName || '',
+    shortName: db.meta.shortName || db.meta.schoolName || '',
+    studentPortalEnabled: enabled,
+    studentPortalChangedAt: db.meta.studentPortalChangedAt || null,
+    message: enabled ? '' : STUDENT_PORTAL_DISABLED_MESSAGE,
+  });
+});
 
 app.get('/api/health', (req, res) => {
   const db = getDb();
@@ -2804,6 +2848,112 @@ app.get('/api/me', requireActor, (req, res) => {
       teacherClassIds: teacherClassIds(db, req.actor.id),
     },
   });
+});
+
+app.patch('/api/access', requireActor, requireSuperAdmin, (req, res) => {
+  const next = parseSwitch(req.body?.studentPortalEnabled);
+  if (next === undefined) {
+    return res.status(400).json({ error: 'Send studentPortalEnabled as true or false.' });
+  }
+
+  const current = studentPortalEnabled(getDb());
+  if (current === next) {
+    return res.json({
+      access: {
+        studentPortalEnabled: next,
+        changedAt: getDb().meta.studentPortalChangedAt || null,
+      },
+    });
+  }
+
+  const changedAt = isoNow();
+  mutate((db) => {
+    db.meta.studentPortalEnabled = next;
+    db.meta.studentPortalChangedAt = changedAt;
+    db.meta.studentPortalChangedBy = req.actor.id;
+    addActivity(
+      db,
+      req.actor,
+      next ? 'Enabled the student portal' : 'Disabled the student portal',
+      'Settings',
+      'student-portal',
+      next ? 'Students can sign in again' : 'Every student request now returns 503'
+    );
+  });
+
+  return res.json({
+    access: {
+      studentPortalEnabled: next,
+      changedAt,
+      changedBy: req.actor.id,
+    },
+  });
+});
+
+/**
+ * Developer console data: which authenticated account is calling the API and
+ * how often, over the last minute. Counters live in this isolate's memory.
+ */
+app.get('/api/telemetry', requireActor, requireSuperAdmin, (req, res) => {
+  const db = getDb();
+  const snapshot = telemetrySnapshot({ limit: req.query.limit });
+  const flags = new Map();
+  db.staff.forEach((member) => flags.set(`staff:${member.id}`, Boolean(member.apiBlocked)));
+  db.students.forEach((member) => flags.set(`student:${member.id}`, Boolean(member.apiBlocked)));
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    ...snapshot,
+    generatedAt: isoNow(),
+    accounts: snapshot.accounts.map((account) => ({
+      ...account,
+      blocked: flags.get(`${account.kind}:${account.id}`) || false,
+    })),
+  });
+});
+
+app.post('/api/telemetry/block', requireActor, requireSuperAdmin, (req, res) => {
+  const kind = str(req.body?.kind);
+  const id = str(req.body?.id);
+  const blocked = parseSwitch(req.body?.blocked);
+  const reason = str(req.body?.reason).slice(0, 160);
+
+  if (!['staff', 'student'].includes(kind) || !id || blocked === undefined) {
+    return res
+      .status(400)
+      .json({ error: 'Send kind (staff|student), id and blocked (true|false).' });
+  }
+  if (kind === 'staff' && id === req.actor.id && blocked) {
+    return res.status(400).json({ error: 'You cannot block your own account.' });
+  }
+
+  const collection = kind === 'student' ? getDb().students : getDb().staff;
+  const record = collection.find((entry) => entry.id === id);
+  if (!record) return res.status(404).json({ error: 'Account not found.' });
+
+  mutate((db) => {
+    const target = (kind === 'student' ? db.students : db.staff).find(
+      (entry) => entry.id === id
+    );
+    target.apiBlocked = blocked;
+    if (blocked) {
+      target.apiBlockedAt = isoNow();
+      target.apiBlockedReason = reason || 'Blocked from the developer console';
+    } else {
+      delete target.apiBlockedAt;
+      delete target.apiBlockedReason;
+    }
+    addActivity(
+      db,
+      req.actor,
+      blocked ? 'Blocked API access' : 'Unblocked API access',
+      kind === 'student' ? 'Student' : 'Staff',
+      target.code || target.id,
+      reason || target.name
+    );
+  });
+
+  return res.json({ kind, id, blocked });
 });
 
 app.post('/api/auth/cloudinary-sign', requireActorOrStudent, (req, res) => {

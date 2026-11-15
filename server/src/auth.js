@@ -1,5 +1,6 @@
 import { adminAuth } from './firebase.js';
 import { getDb, refreshStoreAsync } from './store.js';
+import { STUDENT_PORTAL_DISABLED_MESSAGE, studentPortalEnabled } from './settings.js';
 
 const CHECK_REVOKED = String(process.env.AUTH_CHECK_REVOKED || '').toLowerCase() === 'true';
 
@@ -161,6 +162,12 @@ export async function requireActor(req, res, next) {
   if (!actor.isActive) {
     return res.status(403).json({ error: 'This account has been deactivated.' });
   }
+  if (actor.apiBlocked) {
+    return res.status(403).json({
+      error: 'This account is blocked by an administrator.',
+      code: 'ACCOUNT_BLOCKED',
+    });
+  }
 
   req.actor = actor;
   req.auth = decoded;
@@ -181,10 +188,20 @@ export async function requireStudent(req, res, next) {
       .status(403)
       .json({ error: 'Staff accounts cannot use the student portal. Use the teacher or admin app.' });
   }
+  if (!studentPortalEnabled(db)) {
+    return res
+      .status(503)
+      .json({ error: STUDENT_PORTAL_DISABLED_MESSAGE, code: 'STUDENT_PORTAL_DISABLED' });
+  }
 
   const student = await resolveStudentForRequest(decoded);
   const problem = studentPortalProblem(student);
   if (problem) return res.status(403).json({ error: problem });
+  if (student.apiBlocked) {
+    return res
+      .status(403)
+      .json({ error: 'This account is blocked by an administrator.', code: 'ACCOUNT_BLOCKED' });
+  }
 
   req.student = student;
   req.auth = decoded;
@@ -217,13 +234,28 @@ export async function requireActorOrStudent(req, res, next) {
     if (!actor.isActive) {
       return res.status(403).json({ error: 'This account has been deactivated.' });
     }
+    if (actor.apiBlocked) {
+      return res
+        .status(403)
+        .json({ error: 'This account is blocked by an administrator.', code: 'ACCOUNT_BLOCKED' });
+    }
     req.actor = actor;
     req.auth = decoded;
     return next();
   }
 
+  if (!studentPortalEnabled(getDb())) {
+    return res
+      .status(503)
+      .json({ error: STUDENT_PORTAL_DISABLED_MESSAGE, code: 'STUDENT_PORTAL_DISABLED' });
+  }
   const problem = studentPortalProblem(student);
   if (problem) return res.status(403).json({ error: problem });
+  if (student.apiBlocked) {
+    return res
+      .status(403)
+      .json({ error: 'This account is blocked by an administrator.', code: 'ACCOUNT_BLOCKED' });
+  }
 
   req.student = student;
   req.auth = decoded;
