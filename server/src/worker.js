@@ -16,7 +16,33 @@ import './index.js';
 const handler = httpServerHandler({ port: Number(process.env.PORT || 4000) });
 
 const BOOT_TIMEOUT_MS = 20_000;
+/**
+ * When Firestore refuses a boot, stop retrying for a while.
+ *
+ * A boot reads the whole database (thousands of documents). While the daily
+ * read quota is exhausted, every retry is another burst of rejected reads; with
+ * several isolates and retrying browser tabs that is enough to keep the project
+ * pinned at its limit. A short cooldown turns that into at most two attempts a
+ * minute per isolate and lets the quota recover.
+ */
+const BOOT_RETRY_MS = 30_000;
+let bootBlockedUntil = 0;
 let booting = null;
+
+function startingUp(request) {
+  return new Response(
+    JSON.stringify({ error: 'The school server is starting up. Try again in a moment.' }),
+    {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': request.headers.get('origin') || '*',
+        'Cache-Control': 'no-store',
+        'Retry-After': String(Math.ceil(BOOT_RETRY_MS / 1000)),
+      },
+    }
+  );
+}
 
 /**
  * Boots the store at most once per isolate.
@@ -50,21 +76,15 @@ export default {
     // CORS preflights carry no credentials and need no database, so never let a
     // slow boot block them - otherwise the browser reports a CORS failure.
     if (request.method !== 'OPTIONS') {
+      if (Date.now() < bootBlockedUntil) return startingUp(request);
       try {
         await ensureBooted();
       } catch (error) {
+        // A timed-out boot is worth retrying sooner than a rejected read.
+        const refused = /quota|RESOURCE_EXHAUSTED|429/i.test(error.message);
+        bootBlockedUntil = Date.now() + (refused ? BOOT_RETRY_MS : BOOT_RETRY_MS / 2);
         console.error('[boot]', error.message);
-        return new Response(
-          JSON.stringify({ error: 'The school server is starting up. Try again in a moment.' }),
-          {
-            status: 503,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': request.headers.get('origin') || '*',
-              'Cache-Control': 'no-store',
-            },
-          }
-        );
+        return startingUp(request);
       }
     }
 

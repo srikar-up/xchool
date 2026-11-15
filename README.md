@@ -963,15 +963,20 @@ Every cold Worker isolate reads the whole database once (`initStoreAsync`), whic
 is a few thousand documents for a demo-sized school. On the free tier that means
 roughly twenty cold starts exhaust the 50,000 daily reads, and the symptom is
 `/api/health` returning `503` with `RESOURCE_EXHAUSTED: Quota exceeded` in the
-logs. Reads and writes both stop, so every app shows the startup error.
+logs. Reads stop; **writes still succeed**, which is why a profile merge can be
+written directly while the API cannot boot.
+
+When a boot is refused the Worker now waits 30 seconds before trying again and
+answers `503` with `Retry-After: 30`. That keeps retrying tabs from turning one
+bad minute into thousands of rejected reads.
 
 Recovery:
 
 - Move the Firebase project to Blaze (pay as you go). At this scale the monthly
   cost stays inside the free allowance.
-- Or wait for the daily reset (midnight Pacific) and keep browsers closed while
-  it happens: retrying tabs trigger fresh cold starts and can consume the new
-  quota within minutes.
+- Or wait for the daily reset (midnight Pacific), keep browsers closed while it
+  happens, and avoid running `npm run test:db` against the live project: the
+  Firestore suite round-trips the whole dataset several times.
 
 Bulk edits are the other way to burn the quota. Prefer one import over hundreds
 of `PATCH` calls; a 445-student relabel through the API is thousands of writes
