@@ -1804,6 +1804,18 @@
   gap: 15px;
 }
 
+.student-sheet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.student-sheet-actions .btn {
+  flex: 1 1 auto;
+  min-height: 40px;
+}
+
 .student-sheet-top {
   display: flex;
   align-items: center;

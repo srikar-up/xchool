@@ -78,10 +78,10 @@ and teacher screens no longer list extra demo accounts or Google sign-in.
 
 ### Teacher PWA
 
-- Sign-in with demo accounts and university-style demo shortcut.
+- Sign-in with the single school teacher account, prefilled on the login screen.
 - **Home** — greeting, live date, next class, attendance hero, quick actions, today's schedule, urgent notice, attendance summary, risk students, work counters, recent notices.
 - **Attendance** — class selector for incharge sections, date/session, default present, Present/Absent/Late/Excused control, reason presets + custom note, live summary, edit after submission, save to shared API, plus a GitHub-style **monthly student register**: one row per student, every day across the row, status-coloured squares and a rate column. The session picker follows the school attendance mode set by the admin: either **Morning / Afternoon** or a single **Full day** register.
-- **Classes** — assigned sections, class rosters, attendance and scores, student detail sheet, guardian phone action.
+- **Classes** — assigned sections, class rosters, attendance and scores, student detail sheet, guardian phone action. Class teachers can edit guardian/contact details directly for their own section; name, class, roll number, status and portal access go through a student-record request to the office.
 - **Tasks** — school-wide exam list with the assigned teacher named on every card; only the assigned teacher can enter marks, while colleagues' submitted results open read-only. Includes automatic open/submitted states, marks validation, live average, confirmation and exam lock. The assignment flow only offers classes and subjects assigned to the signed-in teacher; a teacher cannot create or move work to a colleague's subject. An admin can set work for any subject.
 - **Timetable** — follows the admin-configured Monday–Friday or Monday–Saturday week, including Saturday periods created in the admin builder, with live/next period highlighting and whole-school view.
 - **Syllabus** — assigned subjects, chapter progress ring, tap-to-cycle chapter status saved to API.
@@ -94,7 +94,7 @@ and teacher screens no longer list extra demo accounts or Google sign-in.
 
 ### Admin console
 
-- Split-screen sign-in with SuperAdmin/SubAdmin demo accounts.
+- Split-screen sign-in with the single SuperAdmin school account.
 - **Overview** — school KPIs, pictogram launchpad, attendance trend chart, agenda, class registers, risk radar, recent announcements and activity.
 - **Attendance** — date stepper, school-wide stats, class submission status, register review/correction drawer, CSV export, and a GitHub-style **monthly student register** with whole-school/class filtering, student search, status-coloured day squares and per-student rates. A register switch toggles between Morning / Afternoon and the single Full day view, matching the school attendance mode.
 - **Settings** — school profile, attendance mode (morning + afternoon, or one full-day register), SupAdmin guard, account card, data connection info, JSON backup, student CSV export, data-exchange shortcut, admin install prompt, demo reset, sign out.
@@ -293,23 +293,23 @@ the SuperAdmin diagnostic endpoint shows the current sizes.
 Every mutation records which records changed. Clients receive a small patch over
 SSE (`meta`, whole small collections, `upserts`, `deletes`) and merge it into
 the local state. Imports, resets and large bulk roster changes send
-`{ full: true }`, and the client refetches once. A 5-minute `/api/health`
-revision poll plus focus/online refresh covers cross-isolate drift.
+`{ full: true }`, and the client refetches once. A `/api/health` revision poll
+plus focus/online refresh covers cross-isolate drift. The admin console polls
+every 15 seconds, the teacher app every 30 seconds and the student app every
+5 minutes.
 
 `GET /api/changes?since=<revision>` exposes the same patches to clients that
 prefer polling over SSE. The in-memory journal is bounded by
 `CHANGE_JOURNAL_LIMIT` (default 300 revisions); an older revision receives
 `{ full: true }`.
 
-A Worker isolate keeps its database snapshot for its whole lifetime. A record
-written through one isolate is therefore invisible to the others until they
-reload, which matters for portal logins: an administrator provisions a student
-on one isolate and the student's first request can land on another that booted
-earlier. The API reloads on demand when a token resolves to no linked student or
-staff record (`refreshStoreAsync`, at most once every five seconds per isolate),
-so provisioning takes effect immediately. Other cross-isolate edits still
-converge only when an isolate is recycled; serialising writes through a Durable
-Object is the planned fix.
+A Worker isolate keeps its database snapshot for its whole lifetime. To stop one
+isolate from hiding another's writes, every authenticated request calls
+`ensureFreshStore()`: it reads only the `_meta/revision` row (at most once every
+three seconds per isolate) and reloads the full snapshot when the remote
+revision is newer. Writes also publish `remote revision + 1`, so a stale isolate
+cannot reuse a revision number. In practice a teacher's attendance or marks
+reach the admin console within about 15 seconds without a reload.
 
 ### New read endpoints
 
@@ -921,7 +921,7 @@ database.
 
 ## Advanced settings (admin)
 
-**Admin → Advanced** is the SuperAdmin control room. It has two parts.
+**Admin → Advanced** is the SuperAdmin control room. It has three parts.
 
 ### Student app switch
 
@@ -935,6 +935,22 @@ the database and no deploy is needed.
 - Staff, attendance, marks and the teacher/admin apps are unaffected.
 - `GET /api/public/config` is public and returns the switch plus the school
   name, which is how the student login screen learns about it before sign-in.
+
+### Class-teacher student edits
+
+`meta.teacherStudentEditEnabled` (on by default) controls whether a class
+teacher can save guardian name, guardian phone, gender, date of birth and home
+address for their own section. Name, class, roll number, status and portal
+access always go through the office.
+
+- Off: `PATCH /api/students/:id` returns `403` with
+  `code: "TEACHER_STUDENT_EDIT_DISABLED"` for every non-admin, and the teacher
+  student sheet hides the edit action.
+- The request desk still accepts student-record requests. They carry the exact
+  field, old value and requested value, and **Admin → Requests** can apply the
+  change in one click.
+- Toggle: **Admin → Advanced → Class-teacher student edits**. The flag lives in
+  `meta` and both changes are written to the activity log.
 
 ### Developer console
 

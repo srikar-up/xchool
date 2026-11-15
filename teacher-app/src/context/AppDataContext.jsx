@@ -257,7 +257,7 @@ export function AppDataProvider({ children }) {
     };
 
     connect();
-    revisionTimer = window.setInterval(checkRevision, 5 * 60 * 1000);
+    revisionTimer = window.setInterval(checkRevision, 30 * 1000);
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
 

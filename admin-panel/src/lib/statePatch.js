@@ -13,6 +13,10 @@ export function applyServerChange(current, change) {
 
   const next = { ...current };
   if (change.meta) next.meta = change.meta;
+  else if (change.revision && next.meta) {
+    next.meta = { ...next.meta, revision: change.revision };
+  }
+  if (change.revision) next.revision = change.revision;
 
   const wholeCollections = change.collections || {};
   Object.entries(wholeCollections).forEach(([key, items]) => {

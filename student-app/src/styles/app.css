@@ -4514,6 +4514,17 @@
   font-weight: 600;
 }
 
+.app-loading-hint {
+  max-width: 34ch;
+  margin-top: -6px;
+  text-align: center;
+  line-height: 1.65;
+}
+
+.app-loading .btn {
+  margin-top: 2px;
+}
+
 .loading-bars {
   display: flex;
   gap: 4px;

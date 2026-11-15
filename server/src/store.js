@@ -11,7 +11,7 @@ import {
   LAYOUT_VERSION,
   RECORD_COLLECTIONS,
 } from './layout.js';
-import { clearD1, isD1Enabled, loadDbFromD1, saveDbToD1 } from './d1-store.js';
+import { clearD1, isD1Enabled, loadDbFromD1, readRemoteRevision, saveDbToD1 } from './d1-store.js';
 
 /* ------------------------------------------------------------------ */
 /* Storage backends                                                    */
@@ -371,6 +371,18 @@ function queueRemoteSync(changes = null) {
 
   syncQueue = syncQueue
     .then(async () => {
+      // Several isolates can mutate between our last read and this write. Read
+      // the remote revision once so a stale isolate still publishes a number
+      // newer than the copy clients already have.
+      try {
+        const remoteRevision = await readRemoteRevision();
+        if (remoteRevision !== null && remoteRevision >= db.meta.revision) {
+          db.meta.revision = remoteRevision + 1;
+          db.meta.updatedAt = new Date().toISOString();
+        }
+      } catch {
+        /* The local revision advanced by one in mutate(); keep it. */
+      }
       const result = await saveDbToD1(snapshot, lastSynced, queued);
       lastSynced = structuredClone(snapshot);
       lastSyncAt = new Date().toISOString();
@@ -535,12 +547,13 @@ export async function initStoreAsync({ force = false } = {}) {
  * It is rare (once per isolate per changed login) and concurrent callers share
  * one reload. No-op on the JSON backend, where there is a single process.
  */
-export function refreshStoreAsync() {
+export function refreshStoreAsync({ force = false } = {}) {
   if (!isD1Enabled()) return Promise.resolve(false);
   if (refreshing) return refreshing;
   // A token with no linked record would otherwise trigger one full read per
-  // request: bound the cost per isolate.
-  if (Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) return Promise.resolve(false);
+  // request: bound the cost per isolate. Freshness checks pass `force` because
+  // they have already confirmed that the remote revision moved.
+  if (!force && Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) return Promise.resolve(false);
   lastRefreshAt = Date.now();
 
   refreshing = (async () => {
@@ -555,6 +568,36 @@ export function refreshStoreAsync() {
     refreshing = null;
   });
   return refreshing;
+}
+
+/**
+ * Makes this isolate catch up with writes from other Worker isolates.
+ *
+ * Reads one meta row (not the whole school). The default cooldown keeps a busy
+ * tab from turning every request into a D1 read; a real remote change triggers
+ * one full reload shared by all concurrent callers.
+ */
+let freshnessCheckedAt = 0;
+const FRESHNESS_CHECK_MS = 3000;
+
+export async function ensureFreshStore() {
+  if (!isD1Enabled()) return false;
+  if (Date.now() - freshnessCheckedAt < FRESHNESS_CHECK_MS) return false;
+  freshnessCheckedAt = Date.now();
+
+  let remoteRevision = null;
+  try {
+    await syncQueue.catch(() => {});
+    remoteRevision = await readRemoteRevision();
+  } catch {
+    return false;
+  }
+  if (remoteRevision === null) return false;
+  if (remoteRevision <= getDb().meta.revision) return false;
+
+  // Hold the window shut while the shared reload runs.
+  freshnessCheckedAt = Date.now() + 1000;
+  return refreshStoreAsync({ force: true });
 }
 
 export function getDb() {

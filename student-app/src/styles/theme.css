@@ -207,6 +207,7 @@ body::before {
 /* Home hero -------------------------------------------------------- */
 
 .home-hero {
+  overflow: hidden;
   padding: 20px 19px 18px;
   border: 1px solid #ebe4fb;
   border-radius: 30px;
@@ -296,6 +297,11 @@ body::before {
   box-shadow: 0 14px 28px -26px rgba(58, 47, 104, 0.4);
 }
 
+.quick-action > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
 .quick-action strong {
   color: #2d2749;
 }
@@ -372,6 +378,15 @@ body::before {
 }
 
 /* Results, attendance and calendar --------------------------------- */
+
+/* The shared worksheet stylesheet lays `.report-school` out as a row for the
+   teacher report. On the student card the name, address and contact need to
+   stack, otherwise the address is squeezed into a narrow column. */
+.report-sheet-head .report-school {
+  display: block;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
 
 .student-result-hero {
   border: 1px solid #e9e1fb;
@@ -492,10 +507,212 @@ body::before {
   background: #2c2547;
 }
 
+/* Timetable week strip ---------------------------------------------- */
+
+.week-strip {
+  display: flex;
+  gap: 5px;
+}
+
+.week-day {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 2px 7px;
+}
+
 /* Small screens ---------------------------------------------------- */
+
+@media (max-width: 759px) {
+  /* The nav is docked to the bottom edge on phones: a floating pill left a
+     see-through gap where page content peeked out from under it. */
+  .t-shell {
+    padding-bottom: calc(94px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav {
+    bottom: 0;
+    width: 100%;
+    max-width: 540px;
+    min-height: 68px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid rgba(236, 230, 248, 0.95);
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -18px 40px -30px rgba(58, 47, 104, 0.4);
+  }
+
+  .bottom-nav-item {
+    min-height: 52px;
+    gap: 2px;
+    border-radius: 12px;
+    font-size: 9.5px;
+  }
+
+  .bottom-nav-icon {
+    width: 34px;
+    height: 28px;
+  }
+}
 
 @media (max-width: 380px) {
   .home-hero {
-    padding: 18px 16px 16px;
+    padding: 18px 15px 16px;
+  }
+
+  .hero-stat {
+    min-height: 86px;
+    padding: 10px 11px;
+  }
+
+  .hero-stat strong {
+    font-size: 23px;
+  }
+
+  .quick-action {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .quick-action-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+
+  .bottom-nav-item {
+    font-size: 8.6px;
+    letter-spacing: 0;
+  }
+
+  .bottom-nav-icon {
+    width: 30px;
+    height: 26px;
+  }
+}
+
+@media (max-width: 360px) {
+  .t-page {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .bottom-nav {
+    padding-right: 3px;
+    padding-left: 3px;
+  }
+}
+
+/* Login on short phones: keep the sign-in button near the first screen.
+   The marketing strip is hidden there, it is not needed to sign in. */
+@media (max-width: 380px), (max-height: 720px) {
+  .login-content {
+    padding: 14px 14px 22px;
+  }
+
+  .login-hero {
+    margin: 16px 0;
+  }
+
+  .login-hero h1 {
+    margin-top: 9px;
+    font-size: 27px;
+  }
+
+  .login-hero > p,
+  .login-features {
+    display: none;
+  }
+
+  .login-card {
+    padding: 16px;
+  }
+
+  .login-card-head {
+    margin-bottom: 12px;
+  }
+
+  .login-card .field {
+    margin-bottom: 10px;
+  }
+}
+
+/* Report card on phones -------------------------------------------- */
+
+@media (max-width: 640px) {
+  .report-page {
+    background: transparent;
+  }
+
+  .report-sheet {
+    padding: 15px 13px;
+    border-radius: 20px;
+  }
+
+  /* Masthead: crest and school on one row, year as its own pill. The old
+     three-column row squeezed the address under the year badge. */
+  .report-sheet-head {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 10px;
+    padding-bottom: 11px;
+  }
+
+  .report-crest {
+    width: 46px;
+    height: 46px;
+  }
+
+  .report-school h1 {
+    font-size: 16px;
+  }
+
+  .report-school p,
+  .report-school small {
+    overflow-wrap: anywhere;
+    font-size: 9px;
+    line-height: 1.45;
+  }
+
+  .report-year {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: 4px;
+    padding: 3px 9px;
+    border: 1px solid var(--brand-100);
+    border-radius: 999px;
+    background: var(--brand-50);
+    color: var(--brand-dark);
+  }
+
+  .report-student-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+  }
+
+  .report-student-card .avatar {
+    width: 44px !important;
+    height: 44px !important;
+    align-self: start;
+    font-size: 13px !important;
+  }
+
+  .report-student-card h2 {
+    font-size: 15px;
+  }
+
+  .report-average strong {
+    font-size: 18px;
+  }
+
+  .report-average span {
+    font-size: 7.5px;
+  }
+
+  .report-grid strong {
+    font-size: 10.5px;
   }
 }

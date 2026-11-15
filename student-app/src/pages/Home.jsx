@@ -145,7 +145,7 @@ export default function Home() {
           </span>
           <span>
             <strong>Assignments</strong>
-            <small>Class work and due dates</small>
+            <small>Due dates</small>
           </span>
         </Link>
       </section>

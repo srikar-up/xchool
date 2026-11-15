@@ -13,6 +13,11 @@ export function studentPortalEnabled(db) {
   return db?.meta?.studentPortalEnabled !== false;
 }
 
+/** Class teachers may edit contact details unless an admin switched it off. */
+export function teacherStudentEditEnabled(db) {
+  return db?.meta?.teacherStudentEditEnabled !== false;
+}
+
 /** Normalises the admin payload; `undefined` means "leave unchanged". */
 export function parseSwitch(value) {
   if (value === undefined || value === null) return undefined;

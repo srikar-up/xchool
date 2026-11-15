@@ -204,6 +204,8 @@ export function AppDataProvider({ children }) {
             if (cancelled) return;
             setLive(true);
             setOffline(false);
+            // Another isolate may have written while this stream was down.
+            checkRevision();
           },
           onEvent: ({ event, data: raw }) => {
             if (cancelled || event !== 'change') return;
@@ -239,7 +241,7 @@ export function AppDataProvider({ children }) {
     };
 
     connect();
-    revisionTimer = window.setInterval(checkRevision, 5 * 60 * 1000);
+    revisionTimer = window.setInterval(checkRevision, 15 * 1000);
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
 

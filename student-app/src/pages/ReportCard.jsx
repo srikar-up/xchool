@@ -58,7 +58,12 @@ export default function ReportCard() {
             </p>
             <small>
               Guardian: {user?.guardianName || 'Not recorded'}
-              {user?.parentPhone ? ` · ${user.parentPhone}` : ''}
+              {user?.parentPhone ? (
+                <>
+                  {' · '}
+                  <span className="nowrap">{user.parentPhone}</span>
+                </>
+              ) : null}
             </small>
           </div>
           <div className="report-average">
@@ -96,37 +101,27 @@ export default function ReportCard() {
         <section className="report-section">
           <h3>Assessment results</h3>
           {data.results.length ? (
-            <table className="report-table">
-              <thead>
-                <tr>
-                  <th>Assessment</th>
-                  <th>Subject</th>
-                  <th>Date</th>
-                  <th>Marks</th>
-                  <th>%</th>
-                  <th>Grade</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.results.map((result) => (
-                  <tr key={result.id}>
-                    <td>
-                      {result.title}
-                      <small>{categoryLabel(result.category)}</small>
-                    </td>
-                    <td>{result.subject}</td>
-                    <td>{formatDate(result.date)}</td>
-                    <td>
+            <ul className="report-results">
+              {data.results.map((result) => (
+                <li key={result.id} className="report-result">
+                  <div className="report-result-main">
+                    <strong>{result.title}</strong>
+                    <small>
+                      {[categoryLabel(result.category), result.subject, formatDate(result.date)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </small>
+                  </div>
+                  <div className="report-result-marks">
+                    <strong>
                       {result.marksObtained}/{result.maxMarks}
-                    </td>
-                    <td>{result.percentage === null ? '—' : result.percentage}</td>
-                    <td>
-                      <Badge tone={gradeTone(result.percentage)}>{gradeFor(result.percentage)}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </strong>
+                    <small>{result.percentage === null ? '—' : `${result.percentage}%`}</small>
+                  </div>
+                  <Badge tone={gradeTone(result.percentage)}>{gradeFor(result.percentage)}</Badge>
+                </li>
+              ))}
+            </ul>
           ) : (
             <p className="muted">No assessment results have been published yet.</p>
           )}

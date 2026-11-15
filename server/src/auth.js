@@ -1,5 +1,5 @@
 import { adminAuth } from './firebase.js';
-import { getDb, refreshStoreAsync } from './store.js';
+import { ensureFreshStore, getDb, refreshStoreAsync } from './store.js';
 import { STUDENT_PORTAL_DISABLED_MESSAGE, studentPortalEnabled } from './settings.js';
 
 const CHECK_REVOKED = String(process.env.AUTH_CHECK_REVOKED || '').toLowerCase() === 'true';
@@ -152,6 +152,9 @@ export async function requireActor(req, res, next) {
   const decoded = await authenticate(req, res);
   if (!decoded) return undefined;
 
+  // Worker isolates keep their own copy of the school. Pick up writes made by
+  // another isolate (a teacher's attendance, an admin's edit) before serving.
+  await ensureFreshStore();
   const actor = await resolveActorForRequest(decoded);
 
   if (!actor) {
@@ -182,6 +185,7 @@ export async function requireStudent(req, res, next) {
   const decoded = await authenticate(req, res);
   if (!decoded) return undefined;
 
+  await ensureFreshStore();
   const db = getDb();
   if (resolveStaff(db, decoded)) {
     return res
@@ -217,6 +221,7 @@ export async function requireActorOrStudent(req, res, next) {
   const decoded = await authenticate(req, res);
   if (!decoded) return undefined;
 
+  await ensureFreshStore();
   let actor = resolveStaff(getDb(), decoded);
   let student = actor ? null : resolveStudent(getDb(), decoded);
 

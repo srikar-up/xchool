@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowRight,
   Check,
   CheckCircle2,
   ChevronRight,
   Clock3,
+  GraduationCap,
   Inbox,
   LockKeyhole,
   MessageSquareText,
@@ -38,8 +40,17 @@ const STATUSES = [
 function categoryIcon(category) {
   if (category === 'leave') return Stethoscope;
   if (category === 'maintenance' || category === 'gear') return Wrench;
+  if (category === 'student') return GraduationCap;
   if (category === 'confidential') return LockKeyhole;
   return MessageSquareText;
+}
+
+function studentFieldValue(field, value, data) {
+  if (field === 'classIdSection') {
+    return data.classes.find((cls) => cls.id === value)?.displayName || value || '—';
+  }
+  if (field === 'authDisabled') return value ? 'Disabled' : 'Enabled';
+  return value === '' || value === null || value === undefined ? '—' : String(value);
 }
 
 export default function Requests() {
@@ -51,6 +62,7 @@ export default function Requests() {
   const [draftStatus, setDraftStatus] = useState('pending');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [applying, setApplying] = useState(false);
 
   const tickets = useMemo(
     () =>
@@ -124,6 +136,30 @@ export default function Requests() {
 
   const quickAction = async (status) => {
     await save(status);
+  };
+
+  const applyStudentChange = async () => {
+    const change = selected?.studentChange;
+    if (!change) return;
+    setApplying(true);
+    try {
+      const payload = {};
+      change.changes.forEach((entry) => {
+        payload[entry.field] = entry.to;
+      });
+      await api.updateStudent(user.id, change.studentId, payload);
+      await api.updateRequest(user.id, selected.id, {
+        status: 'approved',
+        principalNote: note || 'Student record updated by the school office.',
+      });
+      await refresh({ silent: true });
+      setDraftStatus('approved');
+      notify(`Student record updated for ${change.studentName}.`, 'success');
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setApplying(false);
+    }
   };
 
   return (
@@ -385,6 +421,54 @@ export default function Requests() {
               <span className="request-message-label">Request details</span>
               <p>{selected.body}</p>
             </div>
+
+            {selected.studentChange ? (
+              <div className="student-change-card">
+                <div className="student-change-head">
+                  <div>
+                    <span className="request-message-label">Student record</span>
+                    <strong>{selected.studentChange.studentName}</strong>
+                    <small>
+                      {selected.studentChange.studentCode} ·{' '}
+                      {studentFieldValue(
+                        'classIdSection',
+                        selected.studentChange.classIdSection,
+                        data
+                      )}
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-primary"
+                    onClick={applyStudentChange}
+                    disabled={applying || selected.status === 'approved'}
+                  >
+                    {applying ? (
+                      <span className="admin-spinner" />
+                    ) : (
+                      <CheckCircle2 size={15} />
+                    )}
+                    {applying
+                      ? 'Applying…'
+                      : selected.status === 'approved'
+                        ? 'Applied'
+                        : 'Apply change'}
+                  </button>
+                </div>
+                <div className="student-change-list">
+                  {(selected.studentChange.changes || []).map((entry) => (
+                    <div key={entry.field} className="student-change-row">
+                      <span>{entry.label}</span>
+                      <strong>
+                        <del>{studentFieldValue(entry.field, entry.from, data)}</del>
+                        <ArrowRight size={12} />
+                        <ins>{studentFieldValue(entry.field, entry.to, data)}</ins>
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="request-quick-actions">
               {selected.category === 'leave' ? (

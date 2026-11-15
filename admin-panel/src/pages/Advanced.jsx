@@ -5,6 +5,7 @@ import {
   Ban,
   CheckCircle2,
   Gauge,
+  Pencil,
   RefreshCw,
   Search,
   ShieldAlert,
@@ -28,10 +29,19 @@ function accountLabel(account) {
   return account.name || account.id;
 }
 
+function staffLabel(data, id) {
+  if (!id) return '';
+  return data.staff?.find((member) => member.id === id)?.name || id;
+}
+
 export default function Advanced() {
   const { data, permissions, refresh, notify, user } = useAppData();
   const [portalOn, setPortalOn] = useState(data.meta.studentPortalEnabled !== false);
   const [savingPortal, setSavingPortal] = useState(false);
+  const [teacherEditOn, setTeacherEditOn] = useState(
+    data.meta.teacherStudentEditEnabled !== false
+  );
+  const [savingTeacherEdit, setSavingTeacherEdit] = useState(false);
   const [telemetry, setTelemetry] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +55,10 @@ export default function Advanced() {
   useEffect(() => {
     setPortalOn(data.meta.studentPortalEnabled !== false);
   }, [data.meta.studentPortalEnabled]);
+
+  useEffect(() => {
+    setTeacherEditOn(data.meta.teacherStudentEditEnabled !== false);
+  }, [data.meta.teacherStudentEditEnabled]);
 
   const loadTelemetry = useCallback(
     async (quiet = false) => {
@@ -89,12 +103,30 @@ export default function Advanced() {
         next ? 'Student app is open again.' : 'Student app switched off for everyone.',
         next ? 'success' : 'info'
       );
-      refresh().catch(() => {});
       loadTelemetry(true);
     } catch (toggleError) {
       notify(toggleError.message, 'error');
     } finally {
       setSavingPortal(false);
+    }
+  };
+
+  const toggleTeacherEdit = async () => {
+    const next = !teacherEditOn;
+    setSavingTeacherEdit(true);
+    try {
+      await api.setTeacherStudentEdit(next);
+      setTeacherEditOn(next);
+      notify(
+        next
+          ? 'Class teachers can edit contact details again.'
+          : 'Class-teacher student editing is switched off.',
+        next ? 'success' : 'info'
+      );
+    } catch (toggleError) {
+      notify(toggleError.message, 'error');
+    } finally {
+      setSavingTeacherEdit(false);
     }
   };
 
@@ -160,6 +192,7 @@ export default function Advanced() {
   }
 
   const changedAt = data.meta.studentPortalChangedAt;
+  const teacherEditChangedAt = data.meta.teacherStudentEditChangedAt;
 
   return (
     <div className="advanced-page">
@@ -191,7 +224,11 @@ export default function Advanced() {
             <strong>{portalOn ? 'Students can sign in' : 'Students cannot sign in'}</strong>
             <small>
               {changedAt
-                ? `Last changed ${relativeTime(changedAt)}${data.meta.studentPortalChangedBy ? ` by ${data.meta.studentPortalChangedBy}` : ''}`
+                ? `Last changed ${relativeTime(changedAt)}${
+                    data.meta.studentPortalChangedBy
+                      ? ` by ${staffLabel(data, data.meta.studentPortalChangedBy)}`
+                      : ''
+                  }`
                 : 'Never changed — the portal is open by default'}
             </small>
           </div>
@@ -203,6 +240,57 @@ export default function Advanced() {
             className={`advanced-switch ${portalOn ? 'on' : ''}`}
             onClick={togglePortal}
             disabled={savingPortal}
+          >
+            <span />
+          </button>
+        </div>
+      </section>
+
+      <section className="admin-card advanced-access-card">
+        <div className="admin-card-head">
+          <div>
+            <h2>
+              <Pencil size={17} /> Class-teacher student edits
+            </h2>
+            <p>
+              While this is on, a class teacher can update the guardian name, phone, date of birth
+              and address for their own class. Name, class, roll number, status and portal access
+              always need an office request. Turn it off to send every change through Requests.
+            </p>
+          </div>
+          <Badge
+            tone={teacherEditOn ? 'success' : 'warning'}
+            icon={teacherEditOn ? CheckCircle2 : Ban}
+          >
+            {teacherEditOn ? 'Allowed' : 'Office only'}
+          </Badge>
+        </div>
+
+        <div className="advanced-switch-row">
+          <div>
+            <strong>
+              {teacherEditOn
+                ? 'Class teachers can save contact details'
+                : 'Class teachers send every change to the office'}
+            </strong>
+            <small>
+              {teacherEditChangedAt
+                ? `Last changed ${relativeTime(teacherEditChangedAt)}${
+                    data.meta.teacherStudentEditChangedBy
+                      ? ` by ${staffLabel(data, data.meta.teacherStudentEditChangedBy)}`
+                      : ''
+                  }`
+                : 'Never changed — direct contact editing is on by default'}
+            </small>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={teacherEditOn}
+            aria-label="Class-teacher student detail editing"
+            className={`advanced-switch ${teacherEditOn ? 'on' : ''}`}
+            onClick={toggleTeacherEdit}
+            disabled={savingTeacherEdit}
           >
             <span />
           </button>

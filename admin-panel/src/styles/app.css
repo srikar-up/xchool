@@ -5122,6 +5122,81 @@
   white-space: pre-line;
 }
 
+.student-change-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--slate-200);
+  border-radius: 10px;
+  background: var(--brand-50);
+}
+
+.student-change-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.student-change-head strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--brand-dark);
+  font-size: 10px;
+}
+
+.student-change-head small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.student-change-head .admin-btn {
+  flex: 0 0 auto;
+}
+
+.student-change-list {
+  display: grid;
+  gap: 5px;
+}
+
+.student-change-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.student-change-row > span {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.student-change-row strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 8.5px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.student-change-row del {
+  color: var(--muted);
+  text-decoration-color: rgba(148, 163, 184, 0.6);
+}
+
+.student-change-row ins {
+  color: var(--success);
+  text-decoration: none;
+}
+
 .request-quick-actions {
   display: flex;
   flex-wrap: wrap;

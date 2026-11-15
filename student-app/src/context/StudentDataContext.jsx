@@ -12,7 +12,6 @@ import Toast from '../components/Toast';
 
 const StudentDataContext = createContext(null);
 const SESSION_KEY = 'xchool.student.session.v1';
-const CACHE_KEY = 'xchool.student.state.v1';
 
 function readSession() {
   try {
@@ -20,23 +19,6 @@ function readSession() {
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
-  }
-}
-
-function readCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(state) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(state));
-  } catch {
-    /* Storage can be full or disabled; the app still works online. */
   }
 }
 
@@ -51,8 +33,8 @@ function writeSession(session) {
 
 export function StudentDataProvider({ children }) {
   const [session, setSession] = useState(readSession);
-  const [data, setData] = useState(() => readCache());
-  const [loading, setLoading] = useState(Boolean(readSession() && !readCache()));
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(Boolean(readSession()));
   const [refreshing, setRefreshing] = useState(false);
   const [offline, setOffline] = useState(false);
   const [live, setLive] = useState(false);
@@ -64,6 +46,16 @@ export function StudentDataProvider({ children }) {
   const studentIdRef = useRef(studentId);
   studentIdRef.current = studentId;
   const dataRef = useRef(data);
+
+  useEffect(() => {
+    // The app used to keep the whole bootstrap payload in localStorage. It is
+    // removed on load so an old device copy cannot sit there indefinitely.
+    try {
+      localStorage.removeItem('xchool.student.state.v1');
+    } catch {
+      /* storage can be disabled; nothing else depends on this */
+    }
+  }, []);
 
   useEffect(() => {
     hasDataRef.current = Boolean(data);
@@ -86,7 +78,6 @@ export function StudentDataProvider({ children }) {
       /* Firebase may already be signed out; local state is what matters. */
     });
     writeSession(null);
-    localStorage.removeItem(CACHE_KEY);
     setSession(null);
     setData(null);
     setOffline(false);
@@ -110,7 +101,6 @@ export function StudentDataProvider({ children }) {
           writeSession(next);
           return next;
         });
-        writeCache(state);
         setOffline(false);
         setLastSyncedAt(new Date());
         return state;
@@ -140,7 +130,6 @@ export function StudentDataProvider({ children }) {
     const state = await api.getBootstrap();
     setData(state);
     hasDataRef.current = true;
-    writeCache(state);
     setLastSyncedAt(new Date());
     setOffline(false);
     setLoading(false);

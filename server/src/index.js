@@ -12,6 +12,7 @@ import {
   getJournalBounds,
   getSyncStatus,
   initStoreAsync,
+  ensureFreshStore,
   mutate,
   resetStore,
   storeEvents,
@@ -31,6 +32,7 @@ import {
   STUDENT_PORTAL_DISABLED_MESSAGE,
   parseSwitch,
   studentPortalEnabled,
+  teacherStudentEditEnabled,
 } from './settings.js';
 import { recordRequest, telemetrySnapshot } from './telemetry.js';
 import {
@@ -126,6 +128,34 @@ const RMS_CATEGORIES = new Set([
   'gear',
   'confidential',
   'general',
+  'student',
+]);
+
+/**
+ * Student fields a class teacher may edit directly. Everything else (name,
+ * class, roll number, status and portal access) is administrative and has to
+ * go through the request desk.
+ */
+const TEACHER_STUDENT_FIELDS = [
+  'guardianName',
+  'parentPhone',
+  'gender',
+  'dateOfBirth',
+  'address',
+];
+
+/** Fields that can be proposed through a student-record request. */
+const STUDENT_REQUEST_FIELDS = new Map([
+  ['name', 'Full name'],
+  ['classIdSection', 'Class & section'],
+  ['rollNumber', 'Roll number'],
+  ['status', 'Enrolment status'],
+  ['guardianName', 'Guardian name'],
+  ['parentPhone', 'Guardian phone'],
+  ['dateOfBirth', 'Date of birth'],
+  ['address', 'Home address'],
+  ['authEmail', 'Portal email'],
+  ['authDisabled', 'Portal access'],
 ]);
 const IMPORTANCE = new Set(['Normal', 'Important', 'Urgent', 'Emergency']);
 const ATTENDANCE_TYPES = new Set(['Morning', 'Afternoon', 'FullDay']);
@@ -205,6 +235,8 @@ function classifyRms(text) {
   if (/(broken|repair|projector|ac\b|fan|light|bench|wi-?fi|bulb|desk|exhaust)/.test(lower))
     return 'maintenance';
   if (/(gear|equipment|kit|lab|supplies|material)/.test(lower)) return 'gear';
+  if (/(student|roll number|admission|certificate|guardian|date of birth|record)/.test(lower))
+    return 'student';
   return 'general';
 }
 
@@ -249,7 +281,8 @@ function nextAnnouncementId(db) {
  * to know whether the portal is open before anyone can sign in, and it must
  * never expose anything beyond the school's display name.
  */
-app.get('/api/public/config', (req, res) => {
+app.get('/api/public/config', async (req, res) => {
+  await ensureFreshStore();
   const db = getDb();
   const enabled = studentPortalEnabled(db);
   res.set('Cache-Control', 'no-store');
@@ -262,9 +295,11 @@ app.get('/api/public/config', (req, res) => {
   });
 });
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+  await ensureFreshStore();
   const db = getDb();
   const sync = getSyncStatus();
+  res.set('Cache-Control', 'no-store');
   res.json({
     ok: true,
     school: db.meta.schoolName,
@@ -786,12 +821,77 @@ app.post('/api/students', requireActor, requireAdmin, (req, res) => {
   return res.status(201).json({ student });
 });
 
-app.patch('/api/students/:id', requireActor, requireAdmin, (req, res) => {
+app.patch('/api/students/:id', requireActor, (req, res) => {
   const db = getDb();
   const student = db.students.find((entry) => entry.id === req.params.id);
   if (!student) return res.status(404).json({ error: 'Student not found.' });
 
   const body = req.body || {};
+
+  /**
+   * Class teachers maintain the contact details of their own roster. Names,
+   * class, roll number, status and portal access stay administrative; the
+   * teacher app offers the request desk for those instead.
+   */
+  if (!isAdmin(req.actor)) {
+    if (!teacherStudentEditEnabled(db)) {
+      return res.status(403).json({
+        error:
+          'Class-teacher student editing is switched off. Send the change to the school office as a request.',
+        code: 'TEACHER_STUDENT_EDIT_DISABLED',
+      });
+    }
+    const incharge = db.classIncharges.find(
+      (entry) =>
+        entry.classIdSection === student.classIdSection &&
+        entry.activeStaffId === req.actor.id
+    );
+    if (!incharge) {
+      return res.status(403).json({
+        error: 'Only the class teacher can edit details for this student.',
+      });
+    }
+
+    const restrictedField = Object.keys(body).find(
+      (field) =>
+        body[field] !== undefined &&
+        !TEACHER_STUDENT_FIELDS.includes(field) &&
+        String(body[field] ?? '') !== String(student[field] ?? '')
+    );
+    if (restrictedField) {
+      return res.status(403).json({
+        error:
+          'Name, class, roll number, status and portal access are administrative changes. Send them to the school office as a request.',
+      });
+    }
+
+    const updates = {};
+    TEACHER_STUDENT_FIELDS.forEach((field) => {
+      if (body[field] === undefined) return;
+      const next = str(body[field]);
+      if (next !== String(student[field] ?? '')) updates[field] = next;
+    });
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ error: 'No editable details were changed.' });
+    }
+
+    mutate((current) => {
+      const target = current.students.find((entry) => entry.id === student.id);
+      Object.assign(target, updates);
+      trackRecord('students', target.id);
+      addActivity(
+        current,
+        req.actor,
+        'Updated student contact details',
+        'Student',
+        target.code,
+        target.name
+      );
+    });
+
+    return res.json({ student: getDb().students.find((entry) => entry.id === student.id) });
+  }
+
   const nextClass = body.classIdSection !== undefined ? str(body.classIdSection) : student.classIdSection;
   if (!db.classes.some((cls) => cls.id === nextClass)) {
     return res.status(400).json({ error: 'Select a valid class and section.' });
@@ -2440,7 +2540,47 @@ app.post('/api/rms', requireActor, (req, res) => {
   const message = str(body.body || body.messageBody);
   if (!subject) return res.status(400).json({ error: 'Request subject is required.' });
   if (!message) return res.status(400).json({ error: 'Request details are required.' });
-  let category = str(body.category);
+
+  /**
+   * Student-record requests carry the exact field changes so the office can
+   * see (and apply) them without re-typing the teacher's note. Values are read
+   * from the live record, not trusted from the client.
+   */
+  let studentChange = null;
+  const studentId = str(body.studentId);
+  if (studentId) {
+    const student = db.students.find((entry) => entry.id === studentId);
+    if (!student) return res.status(404).json({ error: 'Student not found.' });
+    if (!isAdmin(req.actor) && !teacherClassIds(db, req.actor.id).includes(student.classIdSection)) {
+      return res.status(403).json({
+        error: 'You can only request changes for classes you teach.',
+      });
+    }
+
+    const submitted = body.changes && typeof body.changes === 'object' ? body.changes : {};
+    const changes = [];
+    for (const [field, label] of STUDENT_REQUEST_FIELDS) {
+      if (submitted[field] === undefined) continue;
+      const next =
+        typeof submitted[field] === 'boolean' ? submitted[field] : str(submitted[field]);
+      const current = student[field] ?? '';
+      if (String(next) === String(current)) continue;
+      changes.push({ field, label, from: current, to: next });
+    }
+    if (!changes.length) {
+      return res.status(400).json({ error: 'Choose at least one detail to correct.' });
+    }
+
+    studentChange = {
+      studentId: student.id,
+      studentCode: student.code,
+      studentName: student.name,
+      classIdSection: student.classIdSection,
+      changes,
+    };
+  }
+
+  let category = studentChange ? 'student' : str(body.category);
   if (!RMS_CATEGORIES.has(category)) category = classifyRms(`${subject} ${message}`);
   const confidential = category === 'confidential' || body.isConfidential === true;
 
@@ -2460,6 +2600,7 @@ app.post('/api/rms', requireActor, (req, res) => {
     principalNote: '',
     createdAt: isoNow(),
     resolvedAt: null,
+    studentChange,
   };
   mutate((current) => {
     current.rmsTickets.unshift(ticket);
@@ -2807,39 +2948,68 @@ app.get('/api/me', requireActor, (req, res) => {
 });
 
 app.patch('/api/access', requireActor, requireSuperAdmin, (req, res) => {
-  const next = parseSwitch(req.body?.studentPortalEnabled);
-  if (next === undefined) {
-    return res.status(400).json({ error: 'Send studentPortalEnabled as true or false.' });
+  const portalNext = parseSwitch(req.body?.studentPortalEnabled);
+  const teacherNext = parseSwitch(req.body?.teacherStudentEditEnabled);
+  if (portalNext === undefined && teacherNext === undefined) {
+    return res.status(400).json({
+      error: 'Send studentPortalEnabled or teacherStudentEditEnabled as true or false.',
+    });
   }
 
-  const current = studentPortalEnabled(getDb());
-  if (current === next) {
+  const db = getDb();
+  const currentPortal = studentPortalEnabled(db);
+  const currentTeacher = teacherStudentEditEnabled(db);
+  const nextPortal = portalNext === undefined ? currentPortal : portalNext;
+  const nextTeacher = teacherNext === undefined ? currentTeacher : teacherNext;
+
+  if (nextPortal === currentPortal && nextTeacher === currentTeacher) {
     return res.json({
       access: {
-        studentPortalEnabled: next,
-        changedAt: getDb().meta.studentPortalChangedAt || null,
+        studentPortalEnabled: nextPortal,
+        teacherStudentEditEnabled: nextTeacher,
+        changedAt: db.meta.studentPortalChangedAt || null,
       },
     });
   }
 
   const changedAt = isoNow();
-  mutate((db) => {
-    db.meta.studentPortalEnabled = next;
-    db.meta.studentPortalChangedAt = changedAt;
-    db.meta.studentPortalChangedBy = req.actor.id;
-    addActivity(
-      db,
-      req.actor,
-      next ? 'Enabled the student portal' : 'Disabled the student portal',
-      'Settings',
-      'student-portal',
-      next ? 'Students can sign in again' : 'Every student request now returns 503'
-    );
+  mutate((current) => {
+    if (nextPortal !== currentPortal) {
+      current.meta.studentPortalEnabled = nextPortal;
+      current.meta.studentPortalChangedAt = changedAt;
+      current.meta.studentPortalChangedBy = req.actor.id;
+      addActivity(
+        current,
+        req.actor,
+        nextPortal ? 'Enabled the student portal' : 'Disabled the student portal',
+        'Settings',
+        'student-portal',
+        nextPortal ? 'Students can sign in again' : 'Every student request now returns 503'
+      );
+    }
+    if (nextTeacher !== currentTeacher) {
+      current.meta.teacherStudentEditEnabled = nextTeacher;
+      current.meta.teacherStudentEditChangedAt = changedAt;
+      current.meta.teacherStudentEditChangedBy = req.actor.id;
+      addActivity(
+        current,
+        req.actor,
+        nextTeacher
+          ? 'Enabled class-teacher student editing'
+          : 'Disabled class-teacher student editing',
+        'Settings',
+        'teacher-student-edit',
+        nextTeacher
+          ? 'Class teachers can update guardian and contact details again'
+          : 'Every student detail change now goes through the request desk'
+      );
+    }
   });
 
   return res.json({
     access: {
-      studentPortalEnabled: next,
+      studentPortalEnabled: nextPortal,
+      teacherStudentEditEnabled: nextTeacher,
       changedAt,
       changedBy: req.actor.id,
     },

@@ -78,7 +78,6 @@ function parseRows(rows, field = 'data') {
 export async function loadDbFromD1() {
   const d1 = getD1Binding();
   await ensureSchema(d1);
-
   // Every collection is stored per record. A layout-v2 database still has one
   // `_config` row per small collection; those are used only when the per-record
   // rows are missing, and the next save rewrites them in layout v3.
@@ -124,6 +123,25 @@ export async function loadDbFromD1() {
   }
 
   return result;
+}
+
+/**
+ * Reads only the meta revision row.
+ *
+ * Worker isolates keep a private copy of the school, so before serving a
+ * request they compare this one small row with their in-memory revision. A
+ * full reload happens only when another isolate has written something.
+ */
+export async function readRemoteRevision() {
+  const d1 = getD1Binding();
+  await ensureSchema(d1);
+  const rows = await all(
+    d1,
+    "SELECT data FROM documents WHERE collection = '_meta' AND id = 'revision'"
+  );
+  if (!rows.length) return null;
+  const revision = Number(JSON.parse(rows[0].data));
+  return Number.isFinite(revision) ? revision : null;
 }
 
 function diffCollection(next, previous) {

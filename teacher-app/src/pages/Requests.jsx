@@ -6,6 +6,7 @@ import {
   ClipboardPlus,
   Clock3,
   FileLock2,
+  GraduationCap,
   Hammer,
   LockKeyhole,
   MessageSquareText,
@@ -64,6 +65,7 @@ const TABS = [
   { value: 'all', label: 'All' },
   { value: 'leave', label: 'Leave' },
   { value: 'maintenance', label: 'Maintenance' },
+  { value: 'student', label: 'Student' },
   { value: 'confidential', label: 'Confidential' },
 ];
 
@@ -94,6 +96,7 @@ export default function Requests() {
     maintenance: tickets.filter(
       (ticket) => ticket.category === 'maintenance' || ticket.category === 'gear'
     ).length,
+    student: tickets.filter((ticket) => ticket.category === 'student').length,
     confidential: tickets.filter((ticket) => ticket.isConfidential).length,
   };
   const visible = tickets.filter((ticket) => {
@@ -159,6 +162,7 @@ export default function Requests() {
     leave: Stethoscope,
     maintenance: Wrench,
     gear: Package,
+    student: GraduationCap,
     confidential: LockKeyhole,
     general: MessageSquareText,
   };

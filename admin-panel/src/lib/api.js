@@ -97,6 +97,8 @@ export const api = {
   /** Advanced settings: the school-wide student portal switch. */
   setStudentPortal: (studentPortalEnabled) =>
     request('/api/access', { method: 'PATCH', body: { studentPortalEnabled } }),
+  setTeacherStudentEdit: (teacherStudentEditEnabled) =>
+    request('/api/access', { method: 'PATCH', body: { teacherStudentEditEnabled } }),
 
   /** Developer console: per-account request counters. */
   getTelemetry: () => request('/api/telemetry'),

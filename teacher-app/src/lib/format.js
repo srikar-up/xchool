@@ -277,6 +277,7 @@ export function rmsMeta(category) {
       leave: { label: 'Leave request', short: 'Leave' },
       maintenance: { label: 'Maintenance', short: 'Maintenance' },
       gear: { label: 'Equipment / gear', short: 'Gear' },
+      student: { label: 'Student record change', short: 'Student' },
       confidential: { label: 'Confidential', short: 'Confidential' },
       general: { label: 'General request', short: 'General' },
     }[category] || { label: category, short: category }
