@@ -3,15 +3,17 @@ import {
   ArrowRight,
   Award,
   Bell,
-  BookOpen,
   CalendarCheck2,
   CalendarDays,
   ChevronRight,
   ClipboardList,
+  ContactRound,
   FileBarChart2,
   GraduationCap,
+  Mail,
   MapPin,
   Megaphone,
+  Phone,
   Sparkles,
 } from 'lucide-react';
 import { useStudentData } from '../context/StudentDataContext';
@@ -19,6 +21,7 @@ import Avatar from '../components/Avatar';
 import Badge from '../components/Badge';
 import ProgressRing from '../components/ProgressRing';
 import {
+  formatDate,
   formatDateLong,
   formatTime,
   greeting,
@@ -47,7 +50,14 @@ export default function Home() {
   const latestResults = data.results.slice(0, 3);
   const notices = [...data.announcements].slice(0, 3);
   const pinned = data.announcements.find((notice) => notice.isPinned);
-  const todayEntries = data.attendance.filter((entry) => entry.date === todayISO());
+  const today = todayISO();
+  const todayEntries = data.attendance.filter((entry) => entry.date === today);
+  const upcomingAssignments = data.assignments
+    .filter((assignment) => !assignment.dueDate || assignment.dueDate >= today)
+    .slice(0, 3);
+  const nextExam = [...data.exams]
+    .filter((exam) => exam.date >= today)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
 
   return (
     <div className="t-page home-page">
@@ -129,16 +139,54 @@ export default function Home() {
             <small>Marks and grades</small>
           </span>
         </Link>
-        <Link to="/syllabus" className="quick-action qa-amber">
+        <Link to="/assignments" className="quick-action qa-amber">
           <span className="quick-action-icon">
-            <BookOpen size={21} />
+            <ClipboardList size={21} />
           </span>
           <span>
-            <strong>Syllabus</strong>
-            <small>Chapter progress</small>
+            <strong>Assignments</strong>
+            <small>Class work and due dates</small>
           </span>
         </Link>
       </section>
+
+      {data.classIncharge ? (
+        <section className="card student-class-teacher-card">
+          <Avatar
+            name={data.classIncharge.name}
+            size={52}
+            photo={data.classIncharge.photo ? { url: data.classIncharge.photo } : undefined}
+          />
+          <div>
+            <span className="eyebrow">
+              <ContactRound size={13} /> Class teacher
+            </span>
+            <h2>{data.classIncharge.name}</h2>
+            <small>
+              {data.classIncharge.department || 'General'}
+              {data.classIncharge.email ? ` · ${data.classIncharge.email}` : ''}
+            </small>
+          </div>
+          <div className="student-contact-actions">
+            {data.classIncharge.phone ? (
+              <a
+                className="btn btn-ghost btn-sm"
+                href={`tel:${String(data.classIncharge.phone).replace(/[^\d+]/g, '')}`}
+              >
+                <Phone size={14} /> Call
+              </a>
+            ) : null}
+            {data.classIncharge.email ? (
+              <a className="btn btn-ghost btn-sm" href={`mailto:${data.classIncharge.email}`}>
+                <Mail size={14} /> Email
+              </a>
+            ) : null}
+            <Link to="/teachers" className="btn btn-ghost btn-sm">
+              All teachers <ChevronRight size={14} />
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <section className="section">
         <div className="section-head">
@@ -216,6 +264,37 @@ export default function Home() {
         </section>
       ) : null}
 
+      {upcomingAssignments.length ? (
+        <section className="section">
+          <div className="section-head">
+            <div>
+              <span className="eyebrow">Class work</span>
+              <h2>Assignments</h2>
+            </div>
+            <Link to="/assignments" className="text-link">
+              All <ChevronRight size={15} />
+            </Link>
+          </div>
+          <div className="notice-list">
+            {upcomingAssignments.map((assignment) => (
+              <Link key={assignment.id} to="/assignments" className="notice-card">
+                <span className="student-assignment-mini-icon">
+                  <ClipboardList size={16} />
+                </span>
+                <span>
+                  <strong>{assignment.title}</strong>
+                  <small>
+                    {assignment.subject} ·{' '}
+                    {assignment.dueDate ? `due ${formatDate(assignment.dueDate)}` : 'no due date'}
+                  </small>
+                </span>
+                <ChevronRight size={16} />
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {pinned ? (
         <Link to="/notices" className="notice-banner">
           <span className="notice-banner-icon">
@@ -261,6 +340,25 @@ export default function Home() {
             <p className="soft-empty">No assessment results have been published yet.</p>
           )}
         </section>
+
+        {nextExam ? (
+          <Link to="/exams" className="card student-next-exam-card">
+            <div className="card-top">
+              <div>
+                <span className="eyebrow">Next exam</span>
+                <h2>{nextExam.subject}</h2>
+              </div>
+              <CalendarDays size={18} />
+            </div>
+            <strong>{nextExam.title}</strong>
+            <p>
+              {formatDate(nextExam.date)} · {formatTime(nextExam.startTime)}
+            </p>
+            <small>
+              {nextExam.maxMarks} marks · {nextExam.marksStatus || 'Scheduled'}
+            </small>
+          </Link>
+        ) : null}
 
         <section className="card attendance-preview">
           <div className="card-top">

@@ -20,6 +20,20 @@ export function publicStudent(student) {
   return copy;
 }
 
+function staffContact(member) {
+  if (!member) return null;
+  return {
+    id: member.id,
+    name: member.name,
+    email: member.email || '',
+    phone: member.phone || '',
+    department: member.department || '',
+    staffType: member.staffType || '',
+    photo: member.photo?.url || null,
+    isClassTeacher: false,
+  };
+}
+
 function sessionDate(session) {
   return String(session?.date || '');
 }
@@ -116,6 +130,75 @@ export function buildStudentBootstrap(db, studentId) {
     })
     .sort((a, b) => String(b.date).localeCompare(String(a.date)));
 
+  /* ---------------------------------------------------------------- */
+  /* Class teachers and subject teachers (contacts are intentional)    */
+  /* ---------------------------------------------------------------- */
+
+  const teacherMap = new Map();
+  const rememberTeacher = (staffId, subjectName) => {
+    const staff = (db.staff || []).find((member) => member.id === staffId);
+    if (!staff) return;
+    const existing = teacherMap.get(staff.id) || {
+      ...staffContact(staff),
+      subjects: [],
+    };
+    if (subjectName && !existing.subjects.includes(subjectName)) {
+      existing.subjects.push(subjectName);
+    }
+    teacherMap.set(staff.id, existing);
+  };
+
+  const classSubjects = (db.subjects || []).filter(
+    (subject) => subject.classIdSection === student.classIdSection
+  );
+  classSubjects.forEach((subject) => {
+    rememberTeacher(subject.assignedStaffId, subject.subjectName);
+  });
+  (db.timetable || [])
+    .filter((period) => period.classIdSection === student.classIdSection)
+    .forEach((period) => rememberTeacher(period.teacherStaffId, period.subject));
+
+  const incharge = (db.classIncharges || []).find(
+    (entry) => entry.classIdSection === student.classIdSection
+  );
+  const inchargeStaff = incharge
+    ? (db.staff || []).find((member) => member.id === incharge.activeStaffId)
+    : null;
+  const classIncharge = inchargeStaff
+    ? { ...staffContact(inchargeStaff), isClassTeacher: true }
+    : null;
+  if (inchargeStaff) {
+    const existing = teacherMap.get(inchargeStaff.id) || {
+      ...staffContact(inchargeStaff),
+      subjects: [],
+    };
+    existing.isClassTeacher = true;
+    teacherMap.set(inchargeStaff.id, existing);
+  }
+  const teachers = [...teacherMap.values()].sort(
+    (a, b) =>
+      Number(b.isClassTeacher) - Number(a.isClassTeacher) || a.name.localeCompare(b.name)
+  );
+
+  const assignments = (db.assignments || [])
+    .filter((assignment) => assignment.classIdSection === student.classIdSection)
+    .map((assignment) => {
+      const teacher = (db.staff || []).find(
+        (member) => member.id === assignment.createdByStaffId
+      );
+      return {
+        id: assignment.id,
+        title: assignment.title,
+        description: assignment.description || '',
+        subject: assignment.subject || '',
+        dueDate: assignment.dueDate || '',
+        status: assignment.status || 'Assigned',
+        createdAt: assignment.createdAt || '',
+        teacherName: teacher?.name || '',
+      };
+    })
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
+
   const attendance = (db.attendanceSessions || [])
     .filter((session) => session.classIdSection === student.classIdSection)
     .map((session) => {
@@ -182,13 +265,6 @@ export function buildStudentBootstrap(db, studentId) {
             })),
           }));
 
-  const incharge = (db.classIncharges || []).find(
-    (entry) => entry.classIdSection === student.classIdSection
-  );
-  const inchargeStaff = incharge
-    ? (db.staff || []).find((member) => member.id === incharge.activeStaffId)
-    : null;
-
   const meta = db.meta || {};
 
   return {
@@ -220,14 +296,14 @@ export function buildStudentBootstrap(db, studentId) {
           room: classRecord.room,
         }
       : null,
-    classIncharge: inchargeStaff
-      ? { name: inchargeStaff.name, email: inchargeStaff.email }
-      : null,
+    classIncharge,
+    teachers,
     subjects,
     curricula,
     timetable,
     exams,
     results,
+    assignments,
     attendance,
     attendanceSummary,
     announcements,
@@ -257,6 +333,7 @@ export function studentChangeRelevant(db, student, event) {
     'curricula',
     'timetable',
     'exams',
+    'assignments',
     'announcements',
     'classIncharges',
     'meta',

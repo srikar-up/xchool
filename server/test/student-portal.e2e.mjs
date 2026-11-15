@@ -288,6 +288,9 @@ try {
       ['/timetable', 'Timetable'],
       ['/attendance', 'Attendance'],
       ['/results', 'Results'],
+      ['/exams', 'Exams'],
+      ['/assignments', 'Assignments'],
+      ['/teachers', 'Teachers'],
       ['/syllabus', 'Syllabus'],
       ['/notices', 'Notices'],
       ['/report-card', 'Report card'],
@@ -305,6 +308,50 @@ try {
         html.includes(heading) && !html.includes(studentB.name),
       ]);
     }
+
+    const inchargeRow = state.classIncharges.find(
+      (entry) => entry.classIdSection === studentA.classIdSection
+    );
+    const inchargeStaffForUi = state.staff.find(
+      (member) => member.id === inchargeRow?.activeStaffId
+    );
+    const classAssignment = state.assignments.find(
+      (assignment) => assignment.classIdSection === studentA.classIdSection
+    );
+
+    await page.goto(`${UI}/teachers`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Teachers', exact: true }).first().waitFor({
+      timeout: 30000,
+    });
+    const teachersHtml = await page.content();
+    results.push([
+      'the class teacher contact is visible',
+      Boolean(
+        inchargeStaffForUi &&
+          teachersHtml.includes(inchargeStaffForUi.name) &&
+          (!inchargeStaffForUi.email || teachersHtml.includes(inchargeStaffForUi.email))
+      ),
+    ]);
+
+    await page.goto(`${UI}/assignments`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Assignments', exact: true }).first().waitFor({
+      timeout: 30000,
+    });
+    const assignmentsHtml = await page.content();
+    results.push([
+      'class assignments are visible',
+      classAssignment ? assignmentsHtml.includes(classAssignment.title) : true,
+    ]);
+
+    await page.goto(`${UI}/exams`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Exams', exact: true }).first().waitFor({
+      timeout: 30000,
+    });
+    const examsHtml = await page.content();
+    results.push([
+      'the exam schedule is visible',
+      examsHtml.includes('Upcoming exams') || examsHtml.includes('Completed exams'),
+    ]);
 
     results.push(['the student UI has no page errors', pageErrors.length === 0]);
     if (pageErrors.length) console.log('PAGE ERRORS:', pageErrors.slice(0, 5));

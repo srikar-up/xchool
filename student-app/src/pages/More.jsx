@@ -3,9 +3,14 @@ import {
   Award,
   Bell,
   BookOpen,
+  CalendarDays,
   ChevronRight,
+  ClipboardList,
+  ContactRound,
   Info,
   LogOut,
+  Mail,
+  Phone,
   RefreshCw,
   ShieldCheck,
   UserRound,
@@ -18,11 +23,32 @@ import { relativeTime } from '../lib/format';
 
 const LINKS = [
   {
+    to: '/teachers',
+    label: 'Teachers',
+    description: 'Class teacher and subject teacher contacts',
+    icon: ContactRound,
+    tone: 'indigo',
+  },
+  {
+    to: '/assignments',
+    label: 'Assignments',
+    description: 'Class work and due dates',
+    icon: ClipboardList,
+    tone: 'amber',
+  },
+  {
+    to: '/exams',
+    label: 'Exams',
+    description: 'Schedule, marks and grades',
+    icon: CalendarDays,
+    tone: 'blue',
+  },
+  {
     to: '/syllabus',
     label: 'Syllabus',
     description: 'Chapter coverage for every subject',
     icon: BookOpen,
-    tone: 'amber',
+    tone: 'teal',
   },
   {
     to: '/notices',
@@ -132,6 +158,33 @@ export default function More() {
             attendance and notices.
           </p>
         ) : null}
+      </section>
+
+      <section className="card student-school-card">
+        <div>
+          <span className="eyebrow">School office</span>
+          <h2>{data.meta.schoolName || 'Xchool'}</h2>
+          <p>{data.meta.address || 'Address not recorded'}</p>
+          <small>
+            Principal: {data.meta.principalName || 'Not recorded'}
+            {data.meta.academicYear ? ` · ${data.meta.academicYear}` : ''}
+          </small>
+        </div>
+        <div className="student-school-actions">
+          {data.meta.phone ? (
+            <a
+              className="btn btn-ghost btn-sm"
+              href={`tel:${String(data.meta.phone).replace(/[^\d+]/g, '')}`}
+            >
+              <Phone size={14} /> Call office
+            </a>
+          ) : null}
+          {data.meta.email ? (
+            <a className="btn btn-ghost btn-sm" href={`mailto:${data.meta.email}`}>
+              <Mail size={14} /> Email office
+            </a>
+          ) : null}
+        </div>
       </section>
 
       <section className="student-about-card">

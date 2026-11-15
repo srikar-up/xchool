@@ -124,6 +124,64 @@ test('attendance and marks are limited to the signed-in student', () => {
   );
 });
 
+test('class teacher and subject teacher contacts are class-scoped', () => {
+  const { db, first } = linkedDb();
+  const snapshot = buildStudentBootstrap(db, first.id);
+
+  assert.ok(snapshot.classIncharge, 'a class teacher should be present');
+  assert.equal(snapshot.classIncharge.isClassTeacher, true);
+  assert.ok(snapshot.classIncharge.email || snapshot.classIncharge.phone);
+  assert.ok(snapshot.teachers.length > 0);
+  assert.ok(
+    snapshot.teachers.some(
+      (teacher) => teacher.isClassTeacher && teacher.id === snapshot.classIncharge.id
+    )
+  );
+  assert.ok(
+    snapshot.teachers.every((teacher) => teacher.name && (teacher.email || teacher.phone))
+  );
+
+  // A teacher who only serves another section must not be exposed.
+  const teacherIds = new Set(snapshot.teachers.map((teacher) => teacher.id));
+  const otherClass = db.classes.find((cls) => cls.id !== first.classIdSection);
+  const otherOnly = db.staff.find(
+    (member) =>
+      !teacherIds.has(member.id) &&
+      db.subjects.some(
+        (subject) =>
+          subject.classIdSection === otherClass.id && subject.assignedStaffId === member.id
+      ) &&
+      !db.subjects.some(
+        (subject) =>
+          subject.classIdSection === first.classIdSection &&
+          subject.assignedStaffId === member.id
+      )
+  );
+  if (otherOnly) {
+    assert.equal(teacherIds.has(otherOnly.id), false);
+  }
+});
+
+test('assignments are limited to the student class', () => {
+  const { db, first } = linkedDb();
+  const snapshot = buildStudentBootstrap(db, first.id);
+  const expected = db.assignments.filter(
+    (assignment) => assignment.classIdSection === first.classIdSection
+  );
+  assert.equal(snapshot.assignments.length, expected.length);
+  assert.ok(snapshot.assignments.every((assignment) => assignment.title));
+  const otherClassAssignment = db.assignments.find(
+    (assignment) => assignment.classIdSection !== first.classIdSection
+  );
+  if (otherClassAssignment) {
+    assert.ok(
+      !snapshot.assignments.some(
+        (assignment) => assignment.id === otherClassAssignment.id
+      )
+    );
+  }
+});
+
 test('only relevant changes wake a student stream', () => {
   const { db, first, second } = linkedDb();
 
@@ -163,6 +221,10 @@ test('only relevant changes wake a student stream', () => {
   );
   assert.equal(
     studentChangeRelevant(db, first, { revision: 14, collections: { timetable: [] } }),
+    true
+  );
+  assert.equal(
+    studentChangeRelevant(db, first, { revision: 14, collections: { assignments: [] } }),
     true
   );
   assert.equal(

@@ -119,6 +119,9 @@ The teacher and admin apps also expose one-click demo buttons on their sign-in s
 - **Timetable** — the student's own class week, with live/next period highlighting.
 - **Attendance** — overall rate by month, a per-day calendar with Present/Late/Excused/Absent dots, and a session log with remarks.
 - **Results** — overall average, best subject, per-subject result history with marks, percentage, grade and progress bars.
+- **Exams** — upcoming and completed assessment schedule with date, time, max marks, status and the student's own result where published.
+- **Assignments** — read-only class work with subject, description, teacher, due date and status; upcoming and earlier tabs.
+- **Teachers** — the class teacher and every subject teacher for the student's class, with department, subjects taught and tap-to-call/tap-to-email contacts. No other section's staff is exposed.
 - **Syllabus** — chapter coverage per subject, completed/in-progress/pending counts and an overall progress ring.
 - **Notices** — student-visible announcements; `TeachersOnly` notices are filtered out on the server.
 - **Report card** — printable sheet with school header, student details, attendance, results, teacher remark and signature lines.
@@ -855,7 +858,7 @@ REST API on Workers. It needs the same service-account secret as Firestore.
 | Endpoint | Returns |
 | --- | --- |
 | `GET /api/student/me` | The signed-in student, sanitized (no auth plumbing). |
-| `GET /api/student/bootstrap` | Own record, class, class incharge, subjects, curricula, timetable, exams, own results, own attendance entries, attendance summary, student-visible announcements and the revision. |
+| `GET /api/student/bootstrap` | Own record, class, class teacher, subject teachers with contacts, subjects, curricula, timetable, exams, assignments, own results, own attendance entries, attendance summary, student-visible announcements and the revision. |
 | `GET /api/student/changes?since=` | `{ revision, unchanged }` or `{ revision, full: true }`. No records. |
 | `GET /api/student/events` | SSE `ready`/`change` events carrying only a revision and `full`/`revoked` flags. The client refetches its scoped snapshot. |
 

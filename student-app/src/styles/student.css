@@ -429,6 +429,73 @@
 .student-about-card strong { font-size: 11.5px; color: #1e293b; }
 .student-about-card p { margin: 2px 0 0; color: var(--muted); font-size: 9.5px; line-height: 1.6; }
 
+/* ---- teachers ------------------------------------------------------ */
+.student-class-teacher-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  margin: 4px 0 14px;
+  flex-wrap: wrap;
+}
+.student-class-teacher-card > div:nth-child(2) { flex: 1; min-width: 150px; }
+.student-class-teacher-card h2 { font-size: 14px; margin: 1px 0; }
+.student-class-teacher-card small { color: var(--muted); font-size: 9.5px; }
+.student-contact-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.student-teacher-hero { display: flex; align-items: center; gap: 14px; padding: 16px; flex-wrap: wrap; }
+.student-teacher-identity { flex: 1; min-width: 160px; }
+.student-teacher-identity h2 { font-size: 18px; margin: 4px 0 1px; }
+.student-teacher-identity p { margin: 0; color: var(--muted); font-size: 10px; }
+.student-teacher-identity small { color: var(--muted); font-size: 9.5px; }
+.student-teacher-list { padding: 4px 12px; margin-top: 8px; }
+.student-teacher-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--slate-100); flex-wrap: wrap; }
+.student-teacher-row:last-child { border-bottom: 0; }
+.student-teacher-text { display: grid; gap: 1px; flex: 1; min-width: 150px; }
+.student-teacher-text strong { font-size: 11.5px; color: #1e293b; }
+.student-teacher-text small { color: var(--muted); font-size: 9px; }
+
+/* ---- assignments --------------------------------------------------- */
+.student-assignment-stack { display: grid; gap: 10px; margin-top: 12px; }
+.student-assignment-card { padding: 13px; }
+.student-assignment-head { display: flex; align-items: flex-start; gap: 10px; }
+.student-assignment-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: var(--brand-50); color: var(--brand); flex: 0 0 auto; }
+.student-assignment-head > div:nth-child(2) { flex: 1; min-width: 0; }
+.student-assignment-head h2 { font-size: 13px; margin: 4px 0 1px; }
+.student-assignment-head small { color: var(--muted); font-size: 9px; }
+.student-assignment-card > p { margin: 10px 0 0; color: #475569; font-size: 11px; line-height: 1.65; }
+.student-assignment-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--slate-100); }
+.student-assignment-foot span { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9.5px; font-weight: 600; }
+.student-assignment-foot small { color: var(--muted); font-size: 9px; }
+.student-assignment-mini-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--brand-50); color: var(--brand); flex: 0 0 auto; }
+
+/* ---- exams --------------------------------------------------------- */
+.student-exam-stack { display: grid; gap: 10px; margin-top: 8px; }
+.student-exam-card { padding: 13px; }
+.student-exam-head { display: flex; align-items: flex-start; gap: 10px; }
+.student-exam-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: #fef3c7; color: #b45309; flex: 0 0 auto; }
+.student-exam-head > div:nth-child(2) { flex: 1; min-width: 0; }
+.student-exam-head h2 { font-size: 13px; margin: 4px 0 1px; }
+.student-exam-head small { color: var(--muted); font-size: 9px; }
+.student-exam-score { display: flex; align-items: baseline; gap: 1px; }
+.student-exam-score strong { font-size: 18px; color: #1e293b; }
+.student-exam-score small { font-size: 9.5px; color: var(--muted); }
+.student-exam-score .badge { margin-left: 5px; align-self: center; }
+.student-exam-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 9px; color: var(--muted); font-size: 9.5px; }
+.student-exam-meta span { display: flex; align-items: center; gap: 4px; }
+.student-exam-link { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; color: var(--brand); font-size: 9.5px; font-weight: 700; text-decoration: none; }
+.student-next-exam-card { display: block; padding: 14px; color: inherit; text-decoration: none; }
+.student-next-exam-card .card-top { align-items: center; }
+.student-next-exam-card > strong { display: block; margin-top: 7px; font-size: 12px; color: #1e293b; }
+.student-next-exam-card > p { margin: 2px 0; color: var(--muted); font-size: 9.5px; }
+.student-next-exam-card > small { color: var(--brand); font-size: 9px; font-weight: 600; }
+
+/* ---- school contact ------------------------------------------------ */
+.student-school-card { display: grid; gap: 10px; padding: 14px; margin: 12px 0; }
+.student-school-card h2 { font-size: 14px; margin: 1px 0 2px; }
+.student-school-card p { margin: 0; color: var(--muted); font-size: 10px; }
+.student-school-card small { color: var(--muted); font-size: 9px; }
+.student-school-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+
 /* ---- responsive ---------------------------------------------------- */
 @media (min-width: 620px) {
   .student-attendance-summary { grid-template-columns: 130px 1fr; }
