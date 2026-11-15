@@ -15,35 +15,22 @@ import { useStudentData } from '../context/StudentDataContext';
 import { api } from '../lib/api';
 
 /**
- * Optional demo shortcut. It only appears when the deployment sets both
- * VITE_STUDENT_DEMO_EMAIL and VITE_STUDENT_DEMO_PASSWORD, so an open-source
- * build never ships a working credential by accident.
+ * Test mode: one read-only student account is shipped with the demo so the
+ * portal can be checked without provisioning a login first.
  */
-const DEMO =
-  import.meta.env.VITE_STUDENT_DEMO_EMAIL && import.meta.env.VITE_STUDENT_DEMO_PASSWORD
-    ? {
-        email: import.meta.env.VITE_STUDENT_DEMO_EMAIL,
-        password: import.meta.env.VITE_STUDENT_DEMO_PASSWORD,
-      }
-    : null;
-
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-    </svg>
-  );
-}
+const TEST_ACCOUNT = {
+  email: '170001@students.xchool.edu.in',
+  password: 'Xchool@123',
+  name: 'Ishita Gandhi',
+  className: '10-A',
+};
 
 export default function Login() {
-  const { session, login, loginWithGoogle } = useStudentData();
+  const { session, login } = useStudentData();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState(DEMO?.email || '');
-  const [password, setPassword] = useState(DEMO?.password || '');
+  const [email, setEmail] = useState(TEST_ACCOUNT.email);
+  const [password, setPassword] = useState(TEST_ACCOUNT.password);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -128,27 +115,13 @@ export default function Login() {
     }
   };
 
-  const googleLogin = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      await loginWithGoogle();
-      go();
-    } catch (loginError) {
-      setError(loginError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const demoLogin = async () => {
-    if (!DEMO) return;
-    setEmail(DEMO.email);
-    setPassword(DEMO.password);
+    setEmail(TEST_ACCOUNT.email);
+    setPassword(TEST_ACCOUNT.password);
     setError('');
     setBusy(true);
     try {
-      await login(DEMO.email, DEMO.password);
+      await login(TEST_ACCOUNT.email, TEST_ACCOUNT.password);
       go();
     } catch (loginError) {
       setError(loginError.message);
@@ -257,36 +230,23 @@ export default function Login() {
             {!busy ? <ArrowRight size={18} /> : null}
           </button>
 
-          <button
-            type="button"
-            className="btn btn-block btn-lg google-btn"
-            onClick={googleLogin}
-            disabled={busy}
-          >
-            <GoogleIcon />
-            Continue with Google
+          <div className="login-divider">
+            <span>test mode</span>
+          </div>
+          <button type="button" className="demo-account" onClick={demoLogin} disabled={busy}>
+            <span className="avatar" style={{ background: '#4338CA', width: 38, height: 38, fontSize: 12 }}>
+              IG
+            </span>
+            <span>
+              <strong>Continue as {TEST_ACCOUNT.name}</strong>
+              <small>{TEST_ACCOUNT.className} · read-only sample account</small>
+            </span>
+            <ArrowRight size={17} />
           </button>
 
-          {DEMO ? (
-            <>
-              <div className="login-divider">
-                <span>demo account</span>
-              </div>
-              <button type="button" className="demo-account" onClick={demoLogin} disabled={busy}>
-                <span className="avatar" style={{ background: '#4338CA', width: 38, height: 38, fontSize: 12 }}>
-                  XS
-                </span>
-                <span>
-                  <strong>Continue as a demo student</strong>
-                  <small>Read-only sample account</small>
-                </span>
-                <ArrowRight size={17} />
-              </button>
-            </>
-          ) : null}
-
           <p className="login-hint">
-            Cannot sign in? Ask the school office to enable your student portal access.
+            Test account: <code>{TEST_ACCOUNT.email}</code> · password{' '}
+            <code>{TEST_ACCOUNT.password}</code>
           </p>
         </form>
 

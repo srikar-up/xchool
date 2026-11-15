@@ -160,16 +160,6 @@ export function StudentDataProvider({ children }) {
     [finishLogin]
   );
 
-  const loginWithGoogle = useCallback(async () => {
-    setLoading(true);
-    try {
-      return await finishLogin(await api.loginWithGoogle());
-    } catch (error) {
-      setLoading(false);
-      throw error;
-    }
-  }, [finishLogin]);
-
   useEffect(() => {
     if (!studentId) {
       setLoading(false);
@@ -273,7 +263,6 @@ export function StudentDataProvider({ children }) {
       live,
       lastSyncedAt,
       login,
-      loginWithGoogle,
       logout,
       refresh,
       notify,
@@ -289,7 +278,6 @@ export function StudentDataProvider({ children }) {
       live,
       lastSyncedAt,
       login,
-      loginWithGoogle,
       logout,
       refresh,
       notify,

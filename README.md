@@ -57,16 +57,16 @@ The server seeds a new `server/data/db.json` on first start if the file is missi
 
 ## 2. Demo accounts
 
+One account per app; each sign-in screen is prefilled with it.
+
 | App | Person | Email | Password |
 | :--- | :--- | :--- | :--- |
-| Admin | Dr. Tarun Mehta (SuperAdmin) | `admin@nawazschool.edu` | `admin123` |
-| Admin | Mr. Usman Ali (SubAdmin) | `subadmin@nawazschool.edu` | `subadmin123` |
-| Teacher | Prof. Sarita Menon | `teacher@nawazschool.edu` | `teacher123` |
-| Teacher | Dr. Imran Khan | `imran@nawazschool.edu` | `teacher123` |
-| Teacher | Ms. Ayesha Siddiqa | `ayesha@nawazschool.edu` | `teacher123` |
-| Teacher | Mr. Bilal Siddiqui | `bilal@nawazschool.edu` | `teacher123` |
+| Admin | Dr. Rakesh Mehra (SuperAdmin) | `admin@nawazschool.edu` | `admin123` |
+| Teacher | Mrs. Sunita Verma | `teacher@nawazschool.edu` | `teacher123` |
+| Student | Ishita Gandhi (10-A) | `170001@students.xchool.edu.in` | `Xchool@123` |
 
-The teacher and admin apps also expose one-click demo buttons on their sign-in screens.
+The student app also has a **Test mode** button on its sign-in screen. The admin
+and teacher screens no longer list extra demo accounts or Google sign-in.
 
 **Student accounts are not seeded.** An administrator creates a login from **Admin → Students → open a student → Student portal → Create login**. The portal email, optional password and Firebase UID can also be edited in the student form. If a student demo is useful, set `VITE_STUDENT_DEMO_EMAIL` and `VITE_STUDENT_DEMO_PASSWORD` before building the student app; the shortcut only appears when both are set.
 
@@ -1011,15 +1011,11 @@ npm run import:d1 -- --data <extracted>/xchool-import-ready.json
 student and staff member, rewrites all references, and tops up attendance for
 the school days after the export.
 
-Sample student logins (provisioned through the admin API):
+Test student login (the student app's **Test mode** button uses it):
 
 | Email | Password | Class |
 | --- | --- | --- |
 | `170001@students.xchool.edu.in` | `Xchool@123` | 10-A |
-| `180006@students.xchool.edu.in` | `Xchool@123` | 9-A |
-| `190001@students.xchool.edu.in` | `Xchool@123` | 8-A |
-| `200001@students.xchool.edu.in` | `Xchool@123` | 7-A |
-| `210001@students.xchool.edu.in` | `Xchool@123` | 6-A |
 
 ### Stress test
 

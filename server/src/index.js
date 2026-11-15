@@ -132,17 +132,6 @@ const ATTENDANCE_TYPES = new Set(['Morning', 'Afternoon', 'FullDay']);
 const EXAM_CATEGORIES = new Set(['classTest', 'ca1', 'ca2', 'midTerm', 'endTerm']);
 const ACTIVITY_LIMIT = Math.max(Number(process.env.ACTIVITY_LIMIT) || 150, 1);
 
-const ACCOUNTS = new Map(
-  [
-    { email: 'admin@nawazschool.edu', password: 'admin123' },
-    { email: 'subadmin@nawazschool.edu', password: 'subadmin123' },
-    { email: 'teacher@nawazschool.edu', password: 'teacher123' },
-    { email: 'imran@nawazschool.edu', password: 'teacher123' },
-    { email: 'ayesha@nawazschool.edu', password: 'teacher123' },
-    { email: 'bilal@nawazschool.edu', password: 'teacher123' },
-  ].map((account) => [account.email, account])
-);
-
 function str(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -288,39 +277,6 @@ app.get('/api/health', (req, res) => {
       lastSyncError: sync.lastSyncError,
       retrying: sync.retrying,
       journal: sync.journal,
-    },
-  });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const db = getDb();
-  const email = str(req.body?.email).toLowerCase();
-  const password = str(req.body?.password);
-  const account = ACCOUNTS.get(email);
-
-  if (!account || account.password !== password) {
-    return res.status(401).json({ error: 'Incorrect email or password.' });
-  }
-  const staff = db.staff.find(
-    (member) => String(member.email || '').trim().toLowerCase() === email
-  );
-  if (!staff) {
-    return res.status(401).json({ error: 'This account no longer exists.' });
-  }
-  if (!staff.isActive) {
-    return res.status(403).json({ error: 'This account is inactive. Contact the school office.' });
-  }
-  if (staff.accessLevel === 'NoAccess') {
-    return res.status(403).json({ error: 'This account does not have software access.' });
-  }
-
-  return res.json({
-    user: staff,
-    permissions: {
-      admin: isAdmin(staff),
-      superAdmin: isSuperAdmin(staff),
-      teacher: true,
-      teacherClassIds: teacherClassIds(db, staff.id),
     },
   });
 });

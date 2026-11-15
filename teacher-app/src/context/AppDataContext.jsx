@@ -172,16 +172,6 @@ export function AppDataProvider({ children }) {
     [finishLogin]
   );
 
-  const loginWithGoogle = useCallback(async () => {
-    setLoading(true);
-    try {
-      return await finishLogin(await api.loginWithGoogle());
-    } catch (error) {
-      setLoading(false);
-      throw error;
-    }
-  }, [finishLogin]);
-
   useEffect(() => {
     if (!staffId) {
       setLoading(false);
@@ -299,7 +289,6 @@ export function AppDataProvider({ children }) {
       live,
       lastSyncedAt,
       login,
-      loginWithGoogle,
       logout,
       refresh,
       notify,
@@ -316,7 +305,6 @@ export function AppDataProvider({ children }) {
       live,
       lastSyncedAt,
       login,
-      loginWithGoogle,
       logout,
       refresh,
       notify,

@@ -18,11 +18,7 @@ import { getDb, initStoreAsync } from '../src/store.js';
 
 const ACCOUNTS = [
   { email: 'admin@nawazschool.edu', password: 'admin123' },
-  { email: 'subadmin@nawazschool.edu', password: 'subadmin123' },
   { email: 'teacher@nawazschool.edu', password: 'teacher123' },
-  { email: 'imran@nawazschool.edu', password: 'teacher123' },
-  { email: 'ayesha@nawazschool.edu', password: 'teacher123' },
-  { email: 'bilal@nawazschool.edu', password: 'teacher123' },
 ];
 
 await initStoreAsync();

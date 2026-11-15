@@ -14,42 +14,19 @@ import {
   Users,
 } from 'lucide-react';
 import { useAppData } from '../context/AppDataContext';
-import Avatar from '../components/Avatar';
 
-const DEMO_ACCOUNTS = [
-  {
-    label: 'Principal · SuperAdmin',
-    name: 'Dr. Rakesh Mehra',
-    email: 'admin@nawazschool.edu',
-    password: 'admin123',
-    color: '#4338CA',
-  },
-  {
-    label: 'Operations · SubAdmin',
-    name: 'Mr. Imran Qureshi',
-    email: 'subadmin@nawazschool.edu',
-    password: 'subadmin123',
-    color: '#0D9488',
-  },
-];
-
-function GoogleIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
-      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-    </svg>
-  );
-}
+const TEST_ACCOUNT = {
+  name: 'Dr. Rakesh Mehra',
+  email: 'admin@nawazschool.edu',
+  password: 'admin123',
+};
 
 export default function Login() {
-  const { session, login, loginWithGoogle } = useAppData();
+  const { session, login } = useAppData();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState(DEMO_ACCOUNTS[0].email);
-  const [password, setPassword] = useState(DEMO_ACCOUNTS[0].password);
+  const [email, setEmail] = useState(TEST_ACCOUNT.email);
+  const [password, setPassword] = useState(TEST_ACCOUNT.password);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -68,34 +45,6 @@ export default function Login() {
     setBusy(true);
     try {
       await login(email.trim(), password);
-      go();
-    } catch (loginError) {
-      setError(loginError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const googleLogin = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      await loginWithGoogle();
-      go();
-    } catch (loginError) {
-      setError(loginError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const quickLogin = async (account) => {
-    setEmail(account.email);
-    setPassword(account.password);
-    setError('');
-    setBusy(true);
-    try {
-      await login(account.email, account.password);
       go();
     } catch (loginError) {
       setError(loginError.message);
@@ -261,42 +210,9 @@ export default function Login() {
             </button>
           </form>
 
-          <button
-            type="button"
-            className="admin-btn admin-btn-block admin-btn-lg admin-google-btn"
-            onClick={googleLogin}
-            disabled={busy}
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-
-          <div className="admin-login-divider">
-            <span>Demo accounts</span>
-          </div>
-
-          <div className="admin-demo-list">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                className="admin-demo-account"
-                onClick={() => quickLogin(account)}
-                disabled={busy}
-              >
-                <Avatar name={account.name} size={38} color={account.color} />
-                <span>
-                  <strong>{account.name}</strong>
-                  <small>{account.label}</small>
-                </span>
-                <ArrowRight size={16} />
-              </button>
-            ))}
-          </div>
-
           <p className="admin-login-note">
-            These demo accounts sign in through Firebase Authentication. Change their passwords in
-            the Firebase console before sharing the deployment.
+            Test account: <strong>{TEST_ACCOUNT.email}</strong> · password{' '}
+            <strong>{TEST_ACCOUNT.password}</strong>
           </p>
 
           <a

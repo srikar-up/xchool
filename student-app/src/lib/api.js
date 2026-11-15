@@ -1,10 +1,4 @@
-import {
-  GoogleAuthProvider,
-  linkWithCredential,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signOut,
-} from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from './firebase';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
@@ -52,36 +46,6 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   return payload;
 }
 
-/**
- * A Google credential from an earlier popup attempt. Firebase's default
- * "one account per email" rule means a school-issued password account must
- * link Google once; the next password sign-in does it silently.
- */
-let pendingGoogleCredential = null;
-
-function googleError(error) {
-  switch (error?.code) {
-    case 'auth/popup-closed-by-user':
-    case 'auth/cancelled-popup-request':
-      return new Error('Google sign-in was cancelled.');
-    case 'auth/popup-blocked':
-      return new Error('Your browser blocked the Google window. Allow pop-ups and try again.');
-    case 'auth/unauthorized-domain':
-      return new Error(
-        'This site is not authorized for Google sign-in yet. Ask the school office to add it in Firebase Authentication → Settings → Authorized domains.'
-      );
-    case 'auth/operation-not-allowed':
-      return new Error('Google sign-in is not enabled for this school project yet.');
-    case 'auth/account-exists-with-different-credential':
-      pendingGoogleCredential = error.credential || null;
-      return new Error(
-        'This email already uses a password. Sign in with your school password once — Google will be linked automatically.'
-      );
-    default:
-      return new Error(error?.message || 'Google sign-in failed.');
-  }
-}
-
 export const api = {
   /**
    * Signs in with Firebase Auth, then asks the API for the linked student
@@ -89,39 +53,8 @@ export const api = {
    */
   login: async (email, password) => {
     const credential = await signInWithEmailAndPassword(auth, email, password);
-
-    if (pendingGoogleCredential) {
-      const pending = pendingGoogleCredential;
-      pendingGoogleCredential = null;
-      try {
-        await linkWithCredential(credential.user, pending);
-        await credential.user.getIdToken(true);
-      } catch {
-        /* Already linked or the provider is gone - password login still works. */
-      }
-    }
-
     await credential.user.getIdToken();
     try {
-      return await request('/api/student/me');
-    } catch (error) {
-      await signOut(auth).catch(() => {});
-      throw error;
-    }
-  },
-
-  loginWithGoogle: async () => {
-    let result;
-    try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      result = await signInWithPopup(auth, provider);
-    } catch (error) {
-      throw googleError(error);
-    }
-
-    try {
-      await result.user.getIdToken();
       return await request('/api/student/me');
     } catch (error) {
       await signOut(auth).catch(() => {});
