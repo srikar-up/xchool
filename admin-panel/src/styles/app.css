@@ -8828,3 +8828,5 @@
 .advanced-block-dialog label { display: grid; gap: 4px; }
 .advanced-block-dialog label span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .advanced-block-dialog input { padding: 8px 10px; border: 1px solid var(--slate-200); border-radius: 8px; font: inherit; font-size: 12px; }
+
+.advanced-self { color: var(--muted); font-size: 10px; font-style: italic; }

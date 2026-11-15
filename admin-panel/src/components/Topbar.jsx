@@ -36,6 +36,7 @@ const TITLES = {
   '/announcements': 'Announcements',
   '/requests': 'Requests & leave',
   '/reports': 'Reports',
+  '/advanced': 'Advanced',
   '/settings': 'Settings',
 };
 

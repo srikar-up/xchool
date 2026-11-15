@@ -29,7 +29,7 @@ function accountLabel(account) {
 }
 
 export default function Advanced() {
-  const { data, permissions, refresh, notify } = useAppData();
+  const { data, permissions, refresh, notify, user } = useAppData();
   const [portalOn, setPortalOn] = useState(data.meta.studentPortalEnabled !== false);
   const [savingPortal, setSavingPortal] = useState(false);
   const [telemetry, setTelemetry] = useState(null);
@@ -312,13 +312,17 @@ export default function Advanced() {
                     </td>
                     <td>{relativeTime(account.lastSeen)}</td>
                     <td className="actions">
-                      <button
-                        type="button"
-                        className={`admin-btn admin-btn-sm ${account.blocked ? 'admin-btn-ghost' : 'admin-btn-danger-ghost'}`}
-                        onClick={() => openBlock(account)}
-                      >
-                        {account.blocked ? 'Unblock' : 'Block'}
-                      </button>
+                      {account.kind === 'staff' && user?.id === account.id ? (
+                        <span className="advanced-self">This is you</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className={`admin-btn admin-btn-sm ${account.blocked ? 'admin-btn-ghost' : 'admin-btn-danger-ghost'}`}
+                          onClick={() => openBlock(account)}
+                        >
+                          {account.blocked ? 'Unblock' : 'Block'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
