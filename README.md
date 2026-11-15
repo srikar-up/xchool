@@ -957,6 +957,26 @@ applies everywhere.
 | `GET /api/telemetry` | SuperAdmin | per-account request counters |
 | `POST /api/telemetry/block` | SuperAdmin | `{ kind, id, blocked, reason }` |
 
+### Firestore quota
+
+Every cold Worker isolate reads the whole database once (`initStoreAsync`), which
+is a few thousand documents for a demo-sized school. On the free tier that means
+roughly twenty cold starts exhaust the 50,000 daily reads, and the symptom is
+`/api/health` returning `503` with `RESOURCE_EXHAUSTED: Quota exceeded` in the
+logs. Reads and writes both stop, so every app shows the startup error.
+
+Recovery:
+
+- Move the Firebase project to Blaze (pay as you go). At this scale the monthly
+  cost stays inside the free allowance.
+- Or wait for the daily reset (midnight Pacific) and keep browsers closed while
+  it happens: retrying tabs trigger fresh cold starts and can consume the new
+  quota within minutes.
+
+Bulk edits are the other way to burn the quota. Prefer one import over hundreds
+of `PATCH` calls; a 445-student relabel through the API is thousands of writes
+once metadata and flushes are counted.
+
 ---
 
 ## Deployment (Cloudflare Workers)
