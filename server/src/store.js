@@ -49,6 +49,11 @@ let lastSyncResult = null;
 let retryChanges = null;
 let journal = [];
 let changeSequence = 0;
+let refreshing = null;
+let lastRefreshAt = 0;
+
+/** Minimum gap between two on-demand reloads in the same isolate. */
+const REFRESH_COOLDOWN_MS = 5000;
 
 /**
  * Local JSON mirror. Disabled on Workers (`DISABLE_FILE_CACHE=true`) where the
@@ -506,6 +511,42 @@ export async function initStoreAsync({ force = false } = {}) {
     console.warn(`[firestore] boot failed (${error.message}); falling back to local JSON.`);
     return initStore({ force });
   }
+}
+
+/**
+ * Re-reads Firestore into this isolate.
+ *
+ * A Worker isolate keeps one in-memory database for its whole lifetime, so an
+ * isolate that booted before another isolate wrote a record keeps serving the
+ * old copy. That is harmless for slowly changing data but not for a portal
+ * login: an administrator provisions a student on one isolate and the student's
+ * first request may land on another, which would refuse access even though the
+ * link exists in Firestore.
+ *
+ * Call this when a lookup misses and the record may have been written remotely.
+ * It is rare (once per isolate per changed login) and concurrent callers share
+ * one reload. No-op on the JSON backend, where there is a single process.
+ */
+export function refreshStoreAsync() {
+  if (!isFirestoreEnabled()) return Promise.resolve(false);
+  if (refreshing) return refreshing;
+  // A token with no linked record would otherwise trigger one full read per
+  // request: bound the cost per isolate.
+  if (Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) return Promise.resolve(false);
+  lastRefreshAt = Date.now();
+
+  refreshing = (async () => {
+    // Never reload over a mutation that has not reached Firestore yet.
+    await syncQueue.catch(() => {});
+    const remote = await loadDbFromFirestore();
+    if (!remote || remote.meta?.schemaVersion !== SCHEMA_VERSION) return false;
+    db = remote;
+    lastSynced = structuredClone(remote);
+    return true;
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
 }
 
 export function getDb() {

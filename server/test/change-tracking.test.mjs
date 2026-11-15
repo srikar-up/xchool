@@ -17,6 +17,7 @@ const {
   getSyncStatus,
   initStore,
   mutate,
+  refreshStoreAsync,
   trackRecord,
 } = await import('../src/store.js');
 
@@ -127,5 +128,13 @@ describe('mutation journal and delta patches', () => {
     assert.equal(status.backend, 'local-json');
     assert.equal(status.layoutVersion, 2);
     assert.equal(status.journal.size, bounds.size);
+  });
+
+  test('an on-demand reload is a no-op on the single-process backend', async () => {
+    const before = getDb();
+    const revision = getRevision();
+    assert.equal(await refreshStoreAsync(), false);
+    assert.equal(getDb(), before);
+    assert.equal(getRevision(), revision);
   });
 });

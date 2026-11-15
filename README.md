@@ -303,6 +303,16 @@ prefer polling over SSE. The in-memory journal is bounded by
 `CHANGE_JOURNAL_LIMIT` (default 300 revisions); an older revision receives
 `{ full: true }`.
 
+A Worker isolate keeps its Firestore copy for its whole lifetime. A record
+written through one isolate is therefore invisible to the others until they
+reload, which matters for portal logins: an administrator provisions a student
+on one isolate and the student's first request can land on another that booted
+earlier. The API reloads on demand when a token resolves to no linked student or
+staff record (`refreshStoreAsync`, at most once every five seconds per isolate),
+so provisioning takes effect immediately. Other cross-isolate edits still
+converge only when an isolate is recycled; serialising writes through a Durable
+Object is the planned fix.
+
 ### New read endpoints
 
 ```text

@@ -1,5 +1,5 @@
 import { adminAuth } from './firebase.js';
-import { getDb } from './store.js';
+import { getDb, refreshStoreAsync } from './store.js';
 
 const CHECK_REVOKED = String(process.env.AUTH_CHECK_REVOKED || '').toLowerCase() === 'true';
 
@@ -110,6 +110,40 @@ export function studentPortalProblem(student) {
 }
 
 /**
+ * Resolves the signed-in student, reloading Firestore when this isolate's copy
+ * has no link for the account yet.
+ *
+ * Administrators provision a login through one Worker isolate; the student's
+ * next request can land on another isolate that booted earlier and therefore
+ * still holds the record without `authUid`. Without the reload that student is
+ * refused with "no student profile is linked" even though Firestore has the
+ * link. The reload happens only on a miss, so normal requests never pay for it.
+ */
+export async function resolveStudentForRequest(decoded) {
+  const student = resolveStudent(getDb(), decoded);
+  if (student || !decoded?.uid) return student;
+
+  const refreshed = await refreshStoreAsync();
+  return refreshed ? resolveStudent(getDb(), decoded) : null;
+}
+
+/**
+ * Resolves the signed-in staff member, reloading Firestore when this isolate's
+ * copy has no matching record yet.
+ *
+ * The same isolate-cache problem as students applies when an administrator
+ * creates a staff login: the teacher's first request can land on an isolate
+ * that booted before the record existed. The reload only runs on a miss.
+ */
+export async function resolveActorForRequest(decoded) {
+  const actor = resolveStaff(getDb(), decoded);
+  if (actor || !decoded?.uid) return actor;
+
+  const refreshed = await refreshStoreAsync();
+  return refreshed ? resolveStaff(getDb(), decoded) : null;
+}
+
+/**
  * Staff middleware. A student token resolves to no staff record, so it can
  * never satisfy a staff route.
  */
@@ -117,8 +151,7 @@ export async function requireActor(req, res, next) {
   const decoded = await authenticate(req, res);
   if (!decoded) return undefined;
 
-  const db = getDb();
-  const actor = resolveStaff(db, decoded);
+  const actor = await resolveActorForRequest(decoded);
 
   if (!actor) {
     return res
@@ -149,7 +182,7 @@ export async function requireStudent(req, res, next) {
       .json({ error: 'Staff accounts cannot use the student portal. Use the teacher or admin app.' });
   }
 
-  const student = resolveStudent(db, decoded);
+  const student = await resolveStudentForRequest(decoded);
   const problem = studentPortalProblem(student);
   if (problem) return res.status(403).json({ error: problem });
 
@@ -167,8 +200,19 @@ export async function requireActorOrStudent(req, res, next) {
   const decoded = await authenticate(req, res);
   if (!decoded) return undefined;
 
-  const db = getDb();
-  const actor = resolveStaff(db, decoded);
+  let actor = resolveStaff(getDb(), decoded);
+  let student = actor ? null : resolveStudent(getDb(), decoded);
+
+  // A student photo request has no staff record by design, so only reload when
+  // neither lookup matches: otherwise every upload would re-read Firestore.
+  if (!actor && !student && decoded.uid) {
+    const refreshed = await refreshStoreAsync();
+    if (refreshed) {
+      actor = resolveStaff(getDb(), decoded);
+      student = actor ? null : resolveStudent(getDb(), decoded);
+    }
+  }
+
   if (actor) {
     if (!actor.isActive) {
       return res.status(403).json({ error: 'This account has been deactivated.' });
@@ -178,7 +222,6 @@ export async function requireActorOrStudent(req, res, next) {
     return next();
   }
 
-  const student = resolveStudent(db, decoded);
   const problem = studentPortalProblem(student);
   if (problem) return res.status(403).json({ error: problem });
 
