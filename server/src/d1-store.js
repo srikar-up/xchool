@@ -79,39 +79,44 @@ export async function loadDbFromD1() {
   const d1 = getD1Binding();
   await ensureSchema(d1);
 
-  const metaRows = await all(d1, "SELECT id, data FROM documents WHERE collection = '_meta'");
+  // Every collection is stored per record. A layout-v2 database still has one
+  // `_config` row per small collection; those are used only when the per-record
+  // rows are missing, and the next save rewrites them in layout v3.
+  //
+  // The queries run in parallel: a cold isolate used to spend 10+ seconds on
+  // sequential D1 round trips, which pushed the first request past the Worker
+  // boot timeout and showed "server is starting up" to the first user.
+  const [metaRows, legacyConfig, collections] = await Promise.all([
+    all(d1, "SELECT id, data FROM documents WHERE collection = '_meta'"),
+    all(d1, "SELECT id, data FROM documents WHERE collection = '_config'"),
+    Promise.all(
+      COLLECTION_KEYS.map(async (key) => {
+        const records = [];
+        let lastId = '';
+        for (;;) {
+          const rows = await all(
+            d1,
+            'SELECT id, data FROM documents WHERE collection = ? AND id > ? ORDER BY id LIMIT ?',
+            key,
+            lastId,
+            PAGE_SIZE
+          );
+          rows.forEach((row) => records.push(JSON.parse(row.data)));
+          if (rows.length < PAGE_SIZE) break;
+          lastId = rows[rows.length - 1].id;
+        }
+        return [key, records];
+      })
+    ),
+  ]);
+
   if (!metaRows.length) return null;
 
   const result = { meta: {} };
   for (const row of metaRows) result.meta[row.id] = JSON.parse(row.data);
 
-  for (const key of COLLECTION_KEYS) result[key] = [];
+  for (const [key, records] of collections) result[key] = records;
 
-  // Every collection is stored per record. A layout-v2 database still has one
-  // `_config` row per small collection; those are used only when the per-record
-  // rows are missing, and the next save rewrites them in layout v3.
-  for (const key of COLLECTION_KEYS) {
-    const records = [];
-    let lastId = '';
-    for (;;) {
-      const rows = await all(
-        d1,
-        'SELECT id, data FROM documents WHERE collection = ? AND id > ? ORDER BY id LIMIT ?',
-        key,
-        lastId,
-        PAGE_SIZE
-      );
-      rows.forEach((row) => records.push(JSON.parse(row.data)));
-      if (rows.length < PAGE_SIZE) break;
-      lastId = rows[rows.length - 1].id;
-    }
-    result[key] = records;
-  }
-
-  const legacyConfig = await all(
-    d1,
-    "SELECT id, data FROM documents WHERE collection = '_config'"
-  );
   for (const row of legacyConfig) {
     if (Object.hasOwn(result, row.id) && result[row.id].length === 0) {
       result[row.id] = JSON.parse(row.data);

@@ -12,7 +12,7 @@ async function authHeaders() {
   return { Authorization: `Bearer ${token}` };
 }
 
-async function request(path, { method = 'GET', body, signal } = {}) {
+async function requestOnce(path, { method = 'GET', body, signal } = {}) {
   const headers = { Accept: 'application/json', ...(await authHeaders()) };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
@@ -44,6 +44,25 @@ async function request(path, { method = 'GET', body, signal } = {}) {
     throw error;
   }
   return payload;
+}
+
+/**
+ * Retries while a cold Worker isolate is still booting. The API answers 503
+ * with Retry-After until the D1 snapshot is loaded; a first visit can land in
+ * that window.
+ */
+async function request(path, options) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await requestOnce(path, options);
+    } catch (error) {
+      if (error.status === 503 && attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        continue;
+      }
+      throw error;
+    }
+  }
 }
 
 export const api = {
