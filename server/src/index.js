@@ -19,7 +19,13 @@ import {
   trackRecord,
 } from './store.js';
 import { COLLECTION_KEYS, CONFIG_COLLECTIONS, LAYOUT_VERSION, RECORD_COLLECTIONS } from './firestore-store.js';
-import { requireActor } from './auth.js';
+import {
+  requireActor,
+  requireActorOrStudent,
+  requireStudent,
+} from './auth.js';
+import { adminAuth } from './firebase.js';
+import { buildStudentBootstrap, publicStudent, studentChangeRelevant } from './student-data.js';
 import { corsDelegate, hasConfiguredOrigins } from './cors.js';
 import {
   PHOTO_FOLDERS,
@@ -488,6 +494,85 @@ app.get('/api/events', requireActor, (req, res) => {
 });
 
 /* ------------------------------------------------------------------ */
+/* Student portal (own record only)                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The portal deliberately does not reuse `/api/state`: that payload contains
+ * every student, mark and register in the school. These four endpoints derive
+ * the student from the verified token and never accept a student id.
+ */
+app.get('/api/student/me', requireStudent, (req, res) => {
+  res.json({
+    student: publicStudent(req.student),
+    permissions: { student: true, photo: true },
+  });
+});
+
+app.get('/api/student/bootstrap', requireStudent, (req, res) => {
+  const payload = buildStudentBootstrap(getDb(), req.student.id);
+  if (!payload) return res.status(404).json({ error: 'Student record not found.' });
+  return res.json(payload);
+});
+
+/**
+ * Revision check used after an SSE reconnect. Only `{ full: true }` is sent;
+ * the scoped bootstrap is small and never exposes another student.
+ */
+app.get('/api/student/changes', requireStudent, (req, res) => {
+  const revision = Number(getDb().meta.revision || 0);
+  const since = Number(req.query.since);
+  if (!Number.isFinite(since) || since >= revision) {
+    return res.json({ revision, unchanged: true });
+  }
+  return res.json({ revision, full: true });
+});
+
+app.get('/api/student/events', requireStudent, (req, res) => {
+  const studentId = req.student.id;
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(
+    `event: ready\ndata: ${JSON.stringify({ revision: getDb().meta.revision })}\n\n`
+  );
+
+  const onStoreChange = (event) => {
+    const db = getDb();
+    const student = db.students.find((entry) => entry.id === studentId);
+    if (!student) {
+      res.write(
+        `event: change\ndata: ${JSON.stringify({
+          revision: event.revision,
+          full: true,
+          revoked: true,
+        })}\n\n`
+      );
+      return;
+    }
+    if (!studentChangeRelevant(db, student, event)) return;
+    // No records travel on this stream: the client refetches its scoped
+    // snapshot, so a bug here cannot leak another student's data.
+    res.write(
+      `event: change\ndata: ${JSON.stringify({ revision: event.revision, full: true })}\n\n`
+    );
+  };
+
+  storeEvents.on('change', onStoreChange);
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25_000);
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    storeEvents.off('change', onStoreChange);
+    res.end();
+  });
+  return undefined;
+});
+
+/* ------------------------------------------------------------------ */
 /* Targeted reads                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -559,6 +644,70 @@ app.get('/api/exams/:id/results', requireActor, (req, res) => {
 /* Students                                                           */
 /* ------------------------------------------------------------------ */
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function portalEmail(value) {
+  return str(value).toLowerCase();
+}
+
+function portalEmailProblem(email) {
+  if (!email) return null;
+  if (email.length > 254 || !EMAIL_PATTERN.test(email)) {
+    return 'Enter a valid email address for the student portal.';
+  }
+  return null;
+}
+
+/**
+ * A student login must not collide with staff access or another student.
+ * This is the authorization boundary that keeps a verified student email from
+ * ever resolving to a staff record (or the other way round).
+ */
+function studentAuthConflict(db, { studentId = '', authEmail = '', authUid = '' }) {
+  if (authEmail) {
+    const staff = db.staff.find(
+      (member) => String(member.email || '').trim().toLowerCase() === authEmail
+    );
+    if (staff) return `The email ${authEmail} belongs to a staff account.`;
+    const other = db.students.find(
+      (entry) =>
+        entry.id !== studentId &&
+        String(entry.authEmail || '').trim().toLowerCase() === authEmail
+    );
+    if (other) return `The email ${authEmail} is already linked to ${other.name}.`;
+  }
+  if (authUid) {
+    const staff = db.staff.find(
+      (member) =>
+        String(member.id) === authUid ||
+        (Array.isArray(member.legacyIds) && member.legacyIds.map(String).includes(authUid))
+    );
+    if (staff) return 'That Firebase UID belongs to a staff account.';
+    const other = db.students.find(
+      (entry) => entry.id !== studentId && String(entry.authUid || '') === authUid
+    );
+    if (other) return `That Firebase UID is already linked to ${other.name}.`;
+  }
+  return null;
+}
+
+/** School-issued password; shown to the administrator once. */
+function generateStudentPassword() {
+  return `Xchool-${crypto.randomBytes(9).toString('hex')}`;
+}
+
+function applyStudentAuthFields(target, body) {
+  if (body.authEmail !== undefined) {
+    if (body.authEmail) target.authEmail = portalEmail(body.authEmail);
+    else delete target.authEmail;
+  }
+  if (body.authUid !== undefined) {
+    if (body.authUid) target.authUid = str(body.authUid);
+    else delete target.authUid;
+  }
+  if (body.authDisabled !== undefined) target.authDisabled = Boolean(body.authDisabled);
+}
+
 app.post('/api/students', requireActor, requireAdmin, (req, res) => {
   const db = getDb();
   const body = req.body || {};
@@ -602,6 +751,13 @@ app.post('/api/students', requireActor, requireAdmin, (req, res) => {
     return res.status(409).json({ error: `Student ID ${code} already exists.` });
   }
 
+  const authEmail = portalEmail(body.authEmail);
+  const authUid = str(body.authUid);
+  const emailProblem = portalEmailProblem(authEmail);
+  if (emailProblem) return res.status(400).json({ error: emailProblem });
+  const authConflict = studentAuthConflict(db, { authEmail, authUid });
+  if (authConflict) return res.status(409).json({ error: authConflict });
+
   const student = {
     id: code,
     code,
@@ -617,6 +773,9 @@ app.post('/api/students', requireActor, requireAdmin, (req, res) => {
     status: str(body.status) || 'Active',
     createdAt: isoNow(),
   };
+  if (authEmail) student.authEmail = authEmail;
+  if (authUid) student.authUid = authUid;
+  if (body.authDisabled !== undefined) student.authDisabled = Boolean(body.authDisabled);
 
   mutate((current) => {
     current.students.push(student);
@@ -650,6 +809,21 @@ app.patch('/api/students/:id', requireActor, requireAdmin, (req, res) => {
     return res.status(409).json({ error: `Roll ${nextRoll} is already used in ${nextClass}.` });
   }
 
+  const nextAuthEmail =
+    body.authEmail !== undefined ? portalEmail(body.authEmail) : portalEmail(student.authEmail);
+  const nextAuthUid =
+    body.authUid !== undefined ? str(body.authUid) : String(student.authUid || '');
+  if (body.authEmail !== undefined) {
+    const emailProblem = portalEmailProblem(nextAuthEmail);
+    if (emailProblem) return res.status(400).json({ error: emailProblem });
+  }
+  const authConflict = studentAuthConflict(db, {
+    studentId: student.id,
+    authEmail: nextAuthEmail,
+    authUid: nextAuthUid,
+  });
+  if (authConflict) return res.status(409).json({ error: authConflict });
+
   const allowed = [
     'name',
     'rollNumber',
@@ -666,6 +840,7 @@ app.patch('/api/students/:id', requireActor, requireAdmin, (req, res) => {
     allowed.forEach((field) => {
       if (body[field] !== undefined) target[field] = body[field];
     });
+    applyStudentAuthFields(target, body);
     target.name = str(target.name) || student.name;
     target.rollNumber = nextRoll;
     target.classIdSection = nextClass;
@@ -718,6 +893,137 @@ app.patch('/api/students/:id/remark', requireActor, (req, res) => {
   });
 
   return res.json({ remark: saved });
+});
+
+/**
+ * Creates a school-issued Firebase account and links it to the student.
+ *
+ * If the email already has a Firebase user (for example one created earlier in
+ * the console), that account is linked and its password reset to the one-time
+ * password returned here. The generated password is never stored in the
+ * database and is shown to the administrator exactly once.
+ */
+app.post('/api/students/:id/login', requireActor, requireAdmin, async (req, res) => {
+  const db = getDb();
+  const student = db.students.find((entry) => entry.id === req.params.id);
+  if (!student) return res.status(404).json({ error: 'Student not found.' });
+
+  const email = portalEmail(req.body?.email || student.authEmail);
+  const emailProblem = portalEmailProblem(email);
+  if (!email || emailProblem) {
+    return res.status(400).json({ error: emailProblem || 'A portal email address is required.' });
+  }
+  if (student.authUid) {
+    return res.status(409).json({
+      error: 'This student already has a portal login. Disable it first to replace the account.',
+    });
+  }
+  const authConflict = studentAuthConflict(db, { studentId: student.id, authEmail: email });
+  if (authConflict) return res.status(409).json({ error: authConflict });
+
+  const supplied = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (supplied && supplied.length < 6) {
+    return res.status(400).json({ error: 'Use at least 6 characters for the password.' });
+  }
+  if (supplied.length > 128) {
+    return res.status(400).json({ error: 'Keep the password under 128 characters.' });
+  }
+  const password = supplied || generateStudentPassword();
+
+  let user;
+  let linkedExisting = false;
+  try {
+    user = await adminAuth().createUser({
+      email,
+      password,
+      displayName: student.name,
+      emailVerified: true,
+    });
+  } catch (error) {
+    if (error?.code === 'auth/email-already-exists') {
+      try {
+        const existing = await adminAuth().getUserByEmail(email);
+        user = await adminAuth().updateUser(existing.uid, {
+          password,
+          displayName: student.name,
+          emailVerified: true,
+        });
+        linkedExisting = true;
+      } catch (linkError) {
+        return res.status(409).json({
+          error:
+            linkError?.message ||
+            'That email already has a Firebase account that could not be linked.',
+        });
+      }
+    } else if (error?.code === 'auth/invalid-email' || error?.code === 'auth/weak-password') {
+      return res.status(400).json({ error: error.message });
+    } else {
+      return res.status(502).json({
+        error: `Could not create the Firebase account: ${error?.message || 'unknown error'}`,
+      });
+    }
+  }
+
+  mutate((current) => {
+    const target = current.students.find((entry) => entry.id === student.id);
+    target.authUid = user.uid;
+    target.authEmail = email;
+    target.authDisabled = false;
+    target.authCreatedAt = isoNow();
+    target.authCreatedBy = req.actor.id;
+    trackRecord('students', target.id);
+    addActivity(
+      current,
+      req.actor,
+      linkedExisting ? 'Linked student portal login' : 'Created student portal login',
+      'Student',
+      target.code,
+      `${target.name} · ${email}`
+    );
+  });
+
+  return res.status(201).json({
+    login: {
+      email,
+      uid: user.uid,
+      // Only returned when the school generated it; a supplied password is
+      // already known to the administrator.
+      password: supplied ? undefined : password,
+      generated: !supplied,
+      linkedExisting,
+    },
+    student: getDb().students.find((entry) => entry.id === student.id),
+  });
+});
+
+/** Revokes portal access without deleting the Firebase user or the record. */
+app.delete('/api/students/:id/login', requireActor, requireAdmin, (req, res) => {
+  const db = getDb();
+  const student = db.students.find((entry) => entry.id === req.params.id);
+  if (!student) return res.status(404).json({ error: 'Student not found.' });
+  if (!student.authUid && !student.authEmail) {
+    return res.status(409).json({ error: 'This student does not have a portal login.' });
+  }
+
+  mutate((current) => {
+    const target = current.students.find((entry) => entry.id === student.id);
+    target.authDisabled = true;
+    trackRecord('students', target.id);
+    addActivity(
+      current,
+      req.actor,
+      'Disabled student portal login',
+      'Student',
+      target.code,
+      target.name
+    );
+  });
+
+  return res.json({
+    ok: true,
+    student: getDb().students.find((entry) => entry.id === student.id),
+  });
 });
 
 app.delete('/api/students/:id', requireActor, requireAdmin, (req, res) => {
@@ -2454,12 +2760,17 @@ function isPrincipal(staff) {
 /**
  * Photo mutation policy.
  *   - Principal / SuperAdmin: any staff or student photo.
- *   - TeacherApp: only their own staff photo (token uid === staff id).
+ *   - TeacherApp: only their own staff photo.
+ *   - Student portal: only their own student photo.
  *   - Everyone else: read-only.
  */
-function canManagePhoto(actor, kind, targetId) {
-  if (isSuperAdmin(actor) || isPrincipal(actor)) return true;
-  return kind === 'staff' && actor.id === targetId;
+function canManagePhoto(req, kind, targetId) {
+  if (req.actor) {
+    if (isSuperAdmin(req.actor) || isPrincipal(req.actor)) return true;
+    return kind === 'staff' && req.actor.id === targetId;
+  }
+  if (req.student) return kind === 'students' && req.student.id === targetId;
+  return false;
 }
 
 function findPhotoTarget(db, kind, id) {
@@ -2495,7 +2806,7 @@ app.get('/api/me', requireActor, (req, res) => {
   });
 });
 
-app.post('/api/auth/cloudinary-sign', requireActor, (req, res) => {
+app.post('/api/auth/cloudinary-sign', requireActorOrStudent, (req, res) => {
   const kind = str(req.body?.kind);
   const id = str(req.body?.id);
 
@@ -2505,7 +2816,7 @@ app.post('/api/auth/cloudinary-sign', requireActor, (req, res) => {
   if (!isCloudinaryConfigured()) {
     return res.status(503).json({ error: 'Photo uploads are not configured on the server.' });
   }
-  if (!canManagePhoto(req.actor, kind, id)) {
+  if (!canManagePhoto(req, kind, id)) {
     return res.status(403).json({ error: 'You can only change your own profile photo.' });
   }
   if (!findPhotoTarget(getDb(), kind, id)) {
@@ -2516,12 +2827,12 @@ app.post('/api/auth/cloudinary-sign', requireActor, (req, res) => {
 });
 
 function registerPhotoRoutes(kind, routePath) {
-  app.patch(routePath, requireActor, (req, res) => {
+  app.patch(routePath, requireActorOrStudent, (req, res) => {
     const id = str(req.params.id);
     const url = str(req.body?.url);
     const publicId = str(req.body?.publicId);
 
-    if (!canManagePhoto(req.actor, kind, id)) {
+    if (!canManagePhoto(req, kind, id)) {
       return res.status(403).json({ error: 'You can only change your own profile photo.' });
     }
     if (!url || !publicId) {
@@ -2550,7 +2861,7 @@ function registerPhotoRoutes(kind, routePath) {
         url,
         publicId,
         updatedAt: isoNow(),
-        updatedBy: req.actor.id,
+        updatedBy: req.actor?.id || req.student?.id,
       };
       trackRecord(kind, id);
     });
@@ -2563,10 +2874,10 @@ function registerPhotoRoutes(kind, routePath) {
     return res.json({ photo: updated.collection[updated.index].photo });
   });
 
-  app.delete(routePath, requireActor, (req, res) => {
+  app.delete(routePath, requireActorOrStudent, (req, res) => {
     const id = str(req.params.id);
 
-    if (!canManagePhoto(req.actor, kind, id)) {
+    if (!canManagePhoto(req, kind, id)) {
       return res.status(403).json({ error: 'You can only change your own profile photo.' });
     }
 
@@ -2600,6 +2911,7 @@ app.use('/api', (req, res) => {
 
 const teacherDist = path.join(ROOT, 'teacher-app', 'dist');
 const adminDist = path.join(ROOT, 'admin-panel', 'dist');
+const studentDist = path.join(ROOT, 'student-app', 'dist');
 const IS_WORKERS = String(process.env.RUNTIME || '') === 'workers';
 
 function mountSpa(basePath, distDir, label) {
@@ -2641,6 +2953,7 @@ function mountSpa(basePath, distDir, label) {
 
 mountSpa('/teacher', teacherDist, 'Teacher app');
 mountSpa('/admin', adminDist, 'Admin panel');
+mountSpa('/student', studentDist, 'Student portal');
 
 if (IS_WORKERS) {
   app.get('/', (req, res) => {

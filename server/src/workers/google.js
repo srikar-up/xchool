@@ -15,11 +15,12 @@
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/datastore';
+const IDENTITY_SCOPE = 'https://www.googleapis.com/auth/identitytoolkit';
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1';
+const IDENTITY_BASE = 'https://identitytoolkit.googleapis.com/v1';
 
 let serviceAccountCache;
-let accessToken = null;
-let accessTokenExpiresAt = 0;
+const accessTokens = new Map();
 
 /**
  * Fetch with a hard timeout and one retry.
@@ -84,7 +85,7 @@ function pemToDer(pem) {
   return bytes;
 }
 
-async function mintAccessToken() {
+async function mintAccessToken(scope) {
   const account = serviceAccount();
   if (!account.client_email || !account.private_key) {
     throw new Error('The service account is missing client_email or private_key.');
@@ -93,7 +94,7 @@ async function mintAccessToken() {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
     iss: account.client_email,
-    scope: SCOPE,
+    scope,
     aud: TOKEN_URL,
     iat: now,
     exp: now + 3600,
@@ -137,14 +138,17 @@ async function mintAccessToken() {
     );
   }
 
-  accessToken = body.access_token;
-  accessTokenExpiresAt = Date.now() + (Number(body.expires_in) || 3600) * 1000 - 120_000;
-  return accessToken;
+  accessTokens.set(scope, {
+    token: body.access_token,
+    expiresAt: Date.now() + (Number(body.expires_in) || 3600) * 1000 - 120_000,
+  });
+  return body.access_token;
 }
 
-export async function googleAccessToken() {
-  if (accessToken && Date.now() < accessTokenExpiresAt) return accessToken;
-  return mintAccessToken();
+export async function googleAccessToken(scope = SCOPE) {
+  const cached = accessTokens.get(scope);
+  if (cached && Date.now() < cached.expiresAt) return cached.token;
+  return mintAccessToken(scope);
 }
 
 /* ------------------------------------------------------------------ */
@@ -301,6 +305,87 @@ export function createRestFirestore() {
         },
       };
     },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Firebase Auth account administration                                */
+/* ------------------------------------------------------------------ */
+
+function authError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function mapIdentityError(message = '') {
+  if (message.includes('EMAIL_EXISTS')) {
+    return authError('That email already has a Firebase account.', 'auth/email-already-exists');
+  }
+  if (message.includes('EMAIL_NOT_FOUND')) {
+    return authError('No Firebase account uses that email.', 'auth/user-not-found');
+  }
+  if (message.includes('INVALID_EMAIL')) {
+    return authError('That email address is not valid.', 'auth/invalid-email');
+  }
+  if (message.includes('WEAK_PASSWORD')) {
+    return authError('Choose a password with at least 6 characters.', 'auth/weak-password');
+  }
+  return authError(message || 'Firebase Auth request failed.', 'auth/internal-error');
+}
+
+async function identityFetch(path, options = {}) {
+  const token = await googleAccessToken(IDENTITY_SCOPE);
+  const response = await googleFetch(`${IDENTITY_BASE}/${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw mapIdentityError(body?.error?.message || '');
+  return body;
+}
+
+export async function createAuthUser({ email, password, displayName, emailVerified = true }) {
+  const body = await identityFetch(`projects/${projectId()}/accounts`, {
+    method: 'POST',
+    body: JSON.stringify({ email, password, displayName, emailVerified }),
+  });
+  return {
+    uid: body.localId,
+    email: body.email,
+    displayName: body.displayName,
+    emailVerified: Boolean(body.emailVerified),
+  };
+}
+
+export async function findAuthUserByEmail(email) {
+  const body = await identityFetch(`projects/${projectId()}/accounts:lookup`, {
+    method: 'POST',
+    body: JSON.stringify({ email: [email] }),
+  });
+  const account = body.users?.[0];
+  if (!account) throw authError('No Firebase account uses that email.', 'auth/user-not-found');
+  return {
+    uid: account.localId,
+    email: account.email,
+    displayName: account.displayName,
+    emailVerified: Boolean(account.emailVerified),
+  };
+}
+
+export async function updateAuthUser(uid, updates = {}) {
+  const body = await identityFetch(`projects/${projectId()}/accounts:update`, {
+    method: 'POST',
+    body: JSON.stringify({ localId: uid, ...updates }),
+  });
+  return {
+    uid: body.localId || uid,
+    email: body.email,
+    displayName: body.displayName,
   };
 }
 

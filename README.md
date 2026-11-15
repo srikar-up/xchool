@@ -1,14 +1,15 @@
 # Xchool RMS — React PWA prototype
 
-A working replacement prototype for the failed Flutter app, built as **two separate web applications** that share one temporary Node/JSON data service:
+A working school management system built as **three separate web applications** that share one Node/Firestore API:
 
 | Workspace | Folder | URL | Design target |
 | :--- | :--- | :--- | :--- |
 | **Teacher app** | `teacher-app/` | `/teacher/` | Mobile-first installable PWA |
 | **Admin console** | `admin-panel/` | `/admin/` | Desktop-first installable PWA |
-| **Shared data API** | `server/` | `/api/*` | Temporary local cache until Firebase |
+| **Student portal** | `student-app/` | `/student/` | Mobile-first installable PWA, read-only |
+| **Shared data API** | `server/` | `/api/*` | Express + Firestore |
 
-Both apps are React 18 + Vite + plain CSS, with custom design tokens based on `school_rms_ui_design_system.md` and the reference images. Data is connected live through Server-Sent Events, so a teacher submitting attendance or marks updates the admin console immediately, and admin announcements/requests appear in the teacher app.
+All three apps are React 18 + Vite + plain CSS, with shared design tokens based on `school_rms_ui_design_system.md` and the reference images. Data is connected live through Server-Sent Events, so a teacher submitting attendance or marks updates the admin console immediately, and admin announcements appear in the teacher and student apps. In production each app is its own Worker on its own origin.
 
 ---
 
@@ -24,6 +25,7 @@ Then open **http://localhost:4000/** for the launcher.
 
 - Teacher PWA: http://localhost:4000/teacher/
 - Admin PWA: http://localhost:4000/admin/
+- Student portal: http://localhost:4000/student/
 - API health: http://localhost:4000/api/health
 
 ### Development mode (hot reload)
@@ -37,8 +39,9 @@ This starts:
 - API server on `http://localhost:4000`
 - Teacher app on `http://localhost:5173`
 - Admin app on `http://localhost:5174`
+- Student portal on `http://localhost:5176`
 
-The Vite dev servers proxy `/api` to the Node server, so the apps behave the same as the production build.
+The Vite dev servers proxy `/api` to the Node server, so the apps behave the same as the production build. Each app also needs its own `.env.local` copied from `.env.example`.
 
 ### Reset the demo data
 
@@ -63,9 +66,11 @@ The server seeds a new `server/data/db.json` on first start if the file is missi
 | Teacher | Ms. Ayesha Siddiqa | `ayesha@nawazschool.edu` | `teacher123` |
 | Teacher | Mr. Bilal Siddiqui | `bilal@nawazschool.edu` | `teacher123` |
 
-All apps also expose one-click demo buttons on their sign-in screens.
+The teacher and admin apps also expose one-click demo buttons on their sign-in screens.
 
-> These credentials are demo-only. The server uses a small in-memory account map, not production authentication. See [Firebase later](#10-firebase-later).
+**Student accounts are not seeded.** An administrator creates a login from **Admin → Students → open a student → Student portal → Create login**. The portal email, optional password and Firebase UID can also be edited in the student form. If a student demo is useful, set `VITE_STUDENT_DEMO_EMAIL` and `VITE_STUDENT_DEMO_PASSWORD` before building the student app; the shortcut only appears when both are set.
+
+> These credentials are demo-only. Production authentication is Firebase Auth; see [Authentication](#authentication) and [Student portal](#student-portal).
 
 ---
 
@@ -103,13 +108,27 @@ All apps also expose one-click demo buttons on their sign-in screens.
 - **Announcements** — composer (audience, priority, pin) and searchable feed with pin/unpin/delete.
 - **Requests & leave** — filters, approval workflow, principal note, confidential principal vault restricted to SuperAdmin.
 - **Reports** — live attendance trend, enrollment and grade donuts, subject performance, risk table, plain-language executive summary, print/CSV.
-- **Data exchange** — two-way CSV system for all 16 datasets. Export a ZIP containing one CSV per collection plus `manifest.json`, `schema.json`, `data.json` and a README; import the ZIP, individual CSVs or a JSON backup. Files are parsed and validated entirely in the browser first, with per-dataset insert/update/remove counts, foreign-key and calculation checks, error report download, merge/upsert or replace modes, then atomic commit to the shared cache and live sync to both apps.
+- **Data exchange** — two-way CSV system for all 16 datasets. Export a ZIP containing one CSV per collection plus `manifest.json`, `schema.json`, `data.json` and a README; import the ZIP, individual CSVs or a JSON backup. Files are parsed and validated entirely in the browser first, with per-dataset insert/update/remove counts, foreign-key and calculation checks, error report download, merge/upsert or replace modes, then atomic commit to the shared cache and live sync to all three apps.
 - Global search with `Ctrl/Cmd+K`, notification popover, live sync chip, responsive off-canvas sidebar.
 - PWA manifest, service worker, icons.
 
+### Student portal
+
+- Sign-in with a school-issued Firebase email/password account or **Continue with Google**. No self-signup.
+- **Home** — greeting, class/roll/school ID, attendance rate, assessment average, today's schedule, latest results and pinned notices.
+- **Timetable** — the student's own class week, with live/next period highlighting.
+- **Attendance** — overall rate by month, a per-day calendar with Present/Late/Excused/Absent dots, and a session log with remarks.
+- **Results** — overall average, best subject, per-subject result history with marks, percentage, grade and progress bars.
+- **Syllabus** — chapter coverage per subject, completed/in-progress/pending counts and an overall progress ring.
+- **Notices** — student-visible announcements; `TeachersOnly` notices are filtered out on the server.
+- **Report card** — printable sheet with school header, student details, attendance, results, teacher remark and signature lines.
+- **Profile** — details, portal status, profile photo crop/upload and sign out.
+- Offline cache, live revision sync, loading/empty/error states, own manifest, service worker and icons.
+- **Read-only V1.** The only write is the student's own profile photo. Every read is derived from the verified token, never from a request parameter.
+
 ### Shared server
 
-- Express REST API with file persistence at `server/data/db.json`.
+- Express REST API with file persistence at `server/data/db.json` (Firestore in production).
 - Seeded demo school generated relative to today:
   - 56 students, 4 sections (10-A, 10-B, 9-A, 9-B)
   - 12 staff with SuperAdmin/SubAdmin/TeacherApp/NoAccess levels
@@ -122,7 +141,9 @@ All apps also expose one-click demo buttons on their sign-in screens.
 - Atomic CSV import endpoint (`POST /api/import`) with SuperAdmin guard, schema version check, duplicate-ID/foreign-key/nested-entry validation, derived-field recalculation and merge/replace modes.
 - Server-side authorization checks for admin, SuperAdmin and class attendance incharge. Assignment writes require the teacher to own the class and the exact subject; admins are exempt.
 - Attendance-mode enforcement: the server accepts only the session types that match `meta.attendanceMode` (morning + afternoon, or one full-day register) and rejects the rest without writing.
-- Static hosting of both built PWAs and a launcher page with live API status.
+- Static hosting of all three built PWAs and a launcher page with live API status.
+- Student identity: `student.authUid` / `student.authEmail`, a separate `requireStudent` middleware and `/api/student/*` scoped reads. A student token is rejected by every staff route, and a staff token is rejected by the student portal.
+- Admin student-login lifecycle: create a Firebase account (or link an existing email), reset its one-time password, disable and re-enable portal access.
 - Demo reset endpoint.
 
 ---
@@ -147,6 +168,14 @@ school pwa/
 │       ├── lib/                 # API client, formatters, CSV/ZIP data exchange
 │       ├── pages/               # Overview, Students, Staff, Exams, Data exchange, ...
 │       └── styles/
+├── student-app/                 # Mobile-first read-only student PWA
+│   ├── public/                  # manifest, service worker, icons, favicon
+│   └── src/
+│       ├── components/          # shell, bottom nav, photo picker, badges
+│       ├── context/             # session, scoped cache, SSE revision sync
+│       ├── lib/                 # student API client + formatters
+│       ├── pages/               # Home, Timetable, Attendance, Results, ...
+│       └── styles/              # shared tokens/app.css + student.css
 ├── server/
 │   ├── src/seed.js              # deterministic demo school
 │   ├── src/store.js             # JSON persistence + change events
@@ -213,6 +242,21 @@ Every person is identified by a six-digit number:
 - Existing Firebase password accounts keep their old uid (`STF-002`). The API
   resolves it through `legacyIds`, so nobody has to reset a password. New
   accounts are created with the numeric uid.
+
+#### Student portal login fields
+
+A student record may carry three optional, server-owned fields:
+
+| Field | Meaning |
+| --- | --- |
+| `authUid` | Firebase UID linked to the student. Primary resolution key. |
+| `authEmail` | School-issued email. Used when the token's email is verified. |
+| `authDisabled` | `true` revokes portal access without deleting the Firebase user. |
+
+`authEmail` must be unique across students and must not match a staff email.
+`authUid` must be unique across students and must not match a staff uid or
+legacy uid. These checks run on create, edit and CSV import, so a student token
+can never resolve to a staff record (or the other way round).
 
 ### Scaling: per-record storage and delta sync
 
@@ -315,6 +359,14 @@ PATCH  /api/students/:id
 PATCH  /api/students/:id/remark
 DELETE /api/students/:id
 POST   /api/students/bulk
+POST   /api/students/:id/login          (admin: create/link account)
+DELETE /api/students/:id/login          (admin: disable portal access)
+
+# Student portal - token-scoped, no student id parameter
+GET    /api/student/me
+GET    /api/student/bootstrap
+GET    /api/student/changes?since=...
+GET    /api/student/events
 
 POST   /api/staff
 PATCH  /api/staff/:id
@@ -552,12 +604,13 @@ The teacher/admin split, data shapes, print views and UI state have been designe
 ## 11. Useful commands
 
 ```powershell
-npm run dev            # API + both Vite dev servers
+npm run dev            # API + all three Vite dev servers
 npm run dev:server     # API only
 npm run dev:teacher    # teacher dev server
 npm run dev:admin      # admin dev server
-npm run build          # production build of both PWAs
-npm start              # serve API + both built PWAs on :4000
+npm run dev:student    # student dev server
+npm run build          # production build of all three PWAs
+npm start              # serve API + all three built PWAs on :4000
 npm run seed           # force-reseed the JSON demo database
 npm run test:api       # shared-data smoke tests (server must be running)
 npm run test:ui        # Chrome route checks + screenshots (server must be running)
@@ -575,7 +628,7 @@ npm run test:assignments:ui  # teacher assignment form options (dev servers)
 ```
 
 For the visual prototype and design rationale, see `target.md` (the UI/UX design
-system for both apps) and `school_rms_architecture_lifecycle_blueprint.md`
+system for all three apps) and `school_rms_architecture_lifecycle_blueprint.md`
 (architecture and lifecycle), plus the reference images in `reffrense image/`
 and the generated screenshots in `screenshots/`.
 
@@ -584,12 +637,13 @@ and the generated screenshots in `screenshots/`.
 ## Current architecture
 
 > The hosting notes earlier in this file describe the original single-origin
-> prototype (/teacher and /admin under one server). They are superseded.
+> prototype (/teacher and /admin under one server). They are superseded; the student portal is a third origin.
 
 | Layer | Runs on | Notes |
 | --- | --- | --- |
 | Teacher PWA | Vite + React | own origin, built with `base: '/'` |
 | Admin panel | Vite + React | own origin, built with `base: '/'` |
+| Student portal | Vite + React | own origin, built with `base: '/'`, read-only |
 | API | Express | own origin |
 | Database | Firestore | reached only through the Firebase Admin SDK |
 | Media | Cloudinary | signed uploads, signature issued by the API |
@@ -602,11 +656,11 @@ access and only the server holds Admin credentials.
 
 ```
 npm run dev            # API :4000, teacher :5173, admin :5174
-npm run build          # builds both PWAs
+npm run build          # builds all three PWAs
 npm --workspace server run start
 ```
 
-Serve both PWAs from the API server for a production preview:
+Serve all three PWAs from the API server for a production preview:
 `http://localhost:4000/teacher/` and `/admin/`.
 
 ### Authentication
@@ -638,8 +692,9 @@ Both login screens offer **Continue with Google** next to the password form.
 - Required in the Firebase console, once per origin:
   - **Authentication → Sign-in method → Google** enabled.
   - **Authentication → Settings → Authorized domains**: add
-    `xchool-teacher.srikarsensai.workers.dev` and
-    `xchool-admin.srikarsensai.workers.dev`.
+    `xchool-teacher.srikarsensai.workers.dev`,
+    `xchool-admin.srikarsensai.workers.dev` and
+    `xchool-student.srikarsensai.workers.dev`.
 
 No Google client secret exists in either app; the popup is handled entirely by
 Firebase Auth, and the API still sees only an ID token.
@@ -751,24 +806,108 @@ npm run test:maintenance:api                # retention dry-run/commit endpoint,
 npm run test:state-patch                    # client-side patch merge in both PWAs
 npm run test:remark                         # teacher remark API + permissions, isolated
 npm run test:remark:ui                      # edit/save/reset a remark in the teacher UI
+npm run test:student:unit                   # student resolution + cross-student isolation
+npm run test:student                        # student login, isolation + every screen, isolated
 node server/test/profile-photo.e2e.mjs      # needs dev servers running
 node server/test/profile-ui.e2e.mjs
 node server/test/live-sync.e2e.mjs
 node server/test/photo-cleanup.e2e.mjs
-npm run test:production                     # hits the three deployed Workers
+npm run test:production                     # hits the deployed Workers
 node server/test/google-mapping.e2e.mjs     # verified-email identity path, self-cleaning
 ```
 
 ---
 
+## Student portal
+
+The student portal is a separate origin and a separate authorization surface.
+It never calls `/api/state`, `/api/bootstrap` or any staff route.
+
+### Who can sign in
+
+A student signs in with the Firebase account an administrator linked to their
+record. Resolution is deliberately narrow:
+
+1. `student.authUid === token.uid`, then
+2. if the token email is **verified**, `student.authEmail === token.email`.
+
+If the record is missing, `authDisabled` is true, or `status` is not `Active`,
+every `/api/student/*` call returns `403`. A staff token is rejected by
+`requireStudent`, and a student token is rejected by `requireActor`.
+
+### Admin provisioning
+
+**Admin → Students → open a student → Student portal**:
+
+- **Create login** — creates a Firebase Auth account with `emailVerified: true`,
+  generates a 19-character password and returns it **once**. If the email
+  already has a Firebase account, that account is linked and its password reset.
+- **Disable access** — sets `authDisabled: true`. The Firebase user is kept, so
+  re-enabling restores access without a new password.
+- The student form also accepts a portal email and Firebase UID directly, so an
+  account created in the Firebase console can be linked without a reset.
+
+Creating the Firebase user uses the Admin SDK on Node and the Identity Toolkit
+REST API on Workers. It needs the same service-account secret as Firestore.
+
+### Endpoints
+
+| Endpoint | Returns |
+| --- | --- |
+| `GET /api/student/me` | The signed-in student, sanitized (no auth plumbing). |
+| `GET /api/student/bootstrap` | Own record, class, class incharge, subjects, curricula, timetable, exams, own results, own attendance entries, attendance summary, student-visible announcements and the revision. |
+| `GET /api/student/changes?since=` | `{ revision, unchanged }` or `{ revision, full: true }`. No records. |
+| `GET /api/student/events` | SSE `ready`/`change` events carrying only a revision and `full`/`revoked` flags. The client refetches its scoped snapshot. |
+
+There is no `studentId` parameter on any student route. The id always comes from
+the verified token, so changing a query string cannot widen the scope. The SSE
+stream filters by class and student id, so an unrelated register submission does
+not wake every device.
+
+### Local development
+
+```powershell
+# 1. API
+npm --workspace server run dev
+
+# 2. Student PWA (separate terminal)
+copy student-app/.env.example student-app/.env.local   # fill in VITE_FIREBASE_*
+npm run dev:student                                     # http://localhost:5176
+```
+
+The Vite dev server proxies `/api` to `http://localhost:4000` when `VITE_API_URL`
+is blank. Set `VITE_API_URL` to call a different API origin.
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_FIREBASE_API_KEY` … `VITE_FIREBASE_MEASUREMENT_ID` | Firebase web config, same project as the other apps. |
+| `VITE_API_URL` | API origin. Leave blank in dev; set to the API Worker URL for a production build. |
+| `VITE_STUDENT_DEMO_EMAIL` / `VITE_STUDENT_DEMO_PASSWORD` | Optional one-click demo shortcut; only rendered when both are set. |
+
+### Tests
+
+```powershell
+npm run test:student:unit   # resolver + bootstrap isolation, no network
+npm run test:student        # temp Firebase users, API isolation + every screen
+```
+
+The E2E test creates two temporary Auth users, links them through the admin API,
+checks that a student token gets `403` on every staff route, proves that neither
+student's name/id/marks/attendance appears in the other's payload, disables and
+re-enables access, then drives the real PWA through every route. It deletes the
+users and uses a temporary JSON database; it never writes to live Firestore.
+
+---
+
 ## Deployment (Cloudflare Workers)
 
-Three independent Workers, three separate origins:
+Four independent Workers, four separate origins:
 
 | App | Worker | URL |
 | --- | --- | --- |
 | Teacher PWA | `xchool-teacher` | https://xchool-teacher.srikarsensai.workers.dev |
 | Admin panel | `xchool-admin` | https://xchool-admin.srikarsensai.workers.dev |
+| Student portal | `xchool-student` | https://xchool-student.srikarsensai.workers.dev |
 | API | `xchool-api` | https://xchool-api.srikarsensai.workers.dev |
 
 A custom domain can replace these later with `routes`/`custom_domains` in each
@@ -785,11 +924,23 @@ npm run build
 npm run deploy:api        # wrangler deploy --config server/wrangler.jsonc
 npm run deploy:teacher
 npm run deploy:admin
+npm run deploy:student
 ```
 
-`npm run deploy:teacher` / `deploy:admin` must run with the app workspace as the
-current directory (the npm workspace scripts do this for you); Wrangler resolves
-`assets.directory` relative to its config file.
+`npm run deploy:teacher` / `deploy:admin` / `deploy:student` must run with the
+app workspace as the current directory (the npm workspace scripts do this for
+you); Wrangler resolves `assets.directory` relative to its config file.
+
+Set `CORS_ORIGINS` on the API Worker to the three app origins:
+
+```text
+https://xchool-teacher.srikarsensai.workers.dev,
+https://xchool-admin.srikarsensai.workers.dev,
+https://xchool-student.srikarsensai.workers.dev
+```
+
+Add `xchool-student.srikarsensai.workers.dev` to **Firebase Authentication →
+Settings → Authorized domains** so Google sign-in works from the student origin.
 
 ### API secrets
 
@@ -805,7 +956,7 @@ npx wrangler secret bulk server/.dev.vars --config server/wrangler.jsonc
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Admin credentials for the REST layer |
 | `FIREBASE_API_KEY` | Web API key used to resolve ID tokens |
 | `CLOUDINARY_CLOUD_NAME` / `_API_KEY` / `_API_SECRET` | signed uploads and deletes |
-| `CORS_ORIGINS` | comma-separated teacher + admin origins |
+| `CORS_ORIGINS` | comma-separated teacher + admin + student origins |
 
 Variables (not secrets) live in `server/wrangler.jsonc`: `RUNTIME=workers`,
 `DATA_BACKEND=firestore`, `DISABLE_FILE_CACHE=true`.

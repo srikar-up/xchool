@@ -1,13 +1,13 @@
 /**
  * CORS policy.
  *
- * The teacher PWA, the admin panel and the API are three separate origins in
- * production, so the API has to allow exactly those two browser origins and
- * nothing else. Requests with no Origin header (curl, server-to-server, the
+ * The teacher PWA, the admin panel, the student portal and the API are separate
+ * origins in production, so the API has to allow exactly those browser origins
+ * and nothing else. Requests with no Origin header (curl, server-to-server, the
  * same-origin production preview) are allowed through untouched.
  *
  * Configure with a comma-separated list:
- *   CORS_ORIGINS=https://teacher.example.com,https://admin.example.com
+ *   CORS_ORIGINS=https://teacher.example.com,https://admin.example.com,https://student.example.com
  *
  * Outside production the local dev servers are added automatically so the
  * default `npm run dev` setup keeps working without any .env changes.
@@ -16,8 +16,10 @@
 const DEV_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5176',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
+  'http://127.0.0.1:5176',
 ];
 
 function parseOrigins(value) {

@@ -160,6 +160,10 @@ export const api = {
   updateStudent: (_staffId, id, payload) =>
     request(`/api/students/${id}`, { method: 'PATCH', body: payload }),
   deleteStudent: (_staffId, id) => request(`/api/students/${id}`, { method: 'DELETE' }),
+  createStudentLogin: (_staffId, id, payload) =>
+    request(`/api/students/${id}/login`, { method: 'POST', body: payload }),
+  disableStudentLogin: (_staffId, id) =>
+    request(`/api/students/${id}/login`, { method: 'DELETE' }),
   bulkStudents: (_staffId, rows) =>
     request('/api/students/bulk', { method: 'POST', body: { rows } }),
 

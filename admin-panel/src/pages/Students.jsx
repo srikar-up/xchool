@@ -6,11 +6,14 @@ import {
   Download,
   Eye,
   FileUp,
+  KeyRound,
   Mail,
   Pencil,
   Phone,
   Plus,
   Search,
+  ShieldCheck,
+  ShieldOff,
   Trash2,
   TriangleAlert,
   Upload,
@@ -53,6 +56,9 @@ function emptyForm(data) {
     dateOfBirth: '',
     address: '',
     status: 'Active',
+    authEmail: '',
+    authUid: '',
+    authDisabled: false,
   };
 }
 
@@ -69,6 +75,11 @@ export default function Students() {
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [importResult, setImportResult] = useState(null);
+  const [loginTarget, setLoginTarget] = useState(null);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginResult, setLoginResult] = useState(null);
+  const [loginBusy, setLoginBusy] = useState(false);
   const fileInputRef = useRef(null);
 
   const studentParam = searchParams.get('student');
@@ -137,6 +148,9 @@ export default function Students() {
       dateOfBirth: student.dateOfBirth || '',
       address: student.address || '',
       status: student.status || 'Active',
+      authEmail: student.authEmail || '',
+      authUid: student.authUid || '',
+      authDisabled: Boolean(student.authDisabled),
     });
     setFormOpen(true);
   };
@@ -182,6 +196,54 @@ export default function Students() {
         next.delete('student');
         setSearchParams(next, { replace: true });
       }
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openLogin = (student) => {
+    setLoginTarget(student);
+    setLoginEmail(student.authEmail || '');
+    setLoginPassword('');
+    setLoginResult(null);
+  };
+
+  const closeLogin = () => {
+    setLoginTarget(null);
+    setLoginResult(null);
+    setLoginPassword('');
+  };
+
+  const createLogin = async (event) => {
+    event.preventDefault();
+    if (!loginTarget) return;
+    setLoginBusy(true);
+    try {
+      const result = await api.createStudentLogin(user.id, loginTarget.id, {
+        email: loginEmail.trim(),
+        password: loginPassword.trim() || undefined,
+      });
+      setLoginResult(result.login);
+      await refresh({ silent: true });
+      notify(`Portal login created for ${loginTarget.name}.`, 'success');
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  const setPortalAccess = async (student, enabled) => {
+    setBusy(true);
+    try {
+      await api.updateStudent(user.id, student.id, { authDisabled: !enabled });
+      await refresh({ silent: true });
+      notify(
+        enabled ? `Portal access enabled for ${student.name}.` : `Portal access disabled for ${student.name}.`,
+        'success'
+      );
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -484,7 +546,14 @@ export default function Students() {
         }
       >
         {selectedStudent ? (
-          <StudentDetail data={data} student={selectedStudent} onEdit={() => openEdit(selectedStudent)} />
+          <StudentDetail
+            data={data}
+            student={selectedStudent}
+            busy={busy}
+            onEdit={() => openEdit(selectedStudent)}
+            onCreateLogin={() => openLogin(selectedStudent)}
+            onToggleLogin={(enabled) => setPortalAccess(selectedStudent, enabled)}
+          />
         ) : null}
       </Drawer>
 
@@ -493,8 +562,8 @@ export default function Students() {
         title={editing ? 'Edit student record' : 'Add a new student'}
         subtitle={
           editing
-            ? 'Changes are shared immediately with the teacher workspace.'
-            : 'The student code is generated automatically from the class and roll number.'
+            ? 'Changes are shared immediately with the teacher and student workspaces.'
+            : 'The school ID is generated from the admission year and roll number.'
         }
         icon={editing ? Pencil : UserPlus}
         onClose={closeForm}
@@ -579,6 +648,34 @@ export default function Students() {
               <option>Graduated</option>
             </select>
           </label>
+          <label className="admin-field">
+            <span>Portal email</span>
+            <input
+              type="email"
+              value={form.authEmail}
+              onChange={(event) => setField('authEmail', event.target.value)}
+              placeholder="student@school.edu"
+            />
+          </label>
+          <label className="admin-field">
+            <span>Firebase UID</span>
+            <input
+              type="text"
+              value={form.authUid}
+              onChange={(event) => setField('authUid', event.target.value)}
+              placeholder="Optional - link an existing account"
+            />
+          </label>
+          <label className="admin-field">
+            <span>Portal access</span>
+            <select
+              value={form.authDisabled ? 'disabled' : 'enabled'}
+              onChange={(event) => setField('authDisabled', event.target.value === 'disabled')}
+            >
+              <option value="enabled">Enabled</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </label>
           <label className="admin-field admin-span-2">
             <span>Home address</span>
             <input
@@ -589,6 +686,95 @@ export default function Students() {
             />
           </label>
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(loginTarget)}
+        title={loginResult ? 'Student login created' : 'Create student login'}
+        subtitle={loginTarget ? `${loginTarget.name} · ${loginTarget.code}` : ''}
+        icon={KeyRound}
+        onClose={closeLogin}
+        size="sm"
+        footer={
+          loginResult ? (
+            <div className="modal-actions">
+              <button type="button" className="admin-btn admin-btn-primary" onClick={closeLogin}>
+                Done
+              </button>
+            </div>
+          ) : (
+            <div className="modal-actions">
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={closeLogin}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="student-login-form"
+                className="admin-btn admin-btn-primary"
+                disabled={loginBusy || !loginEmail.trim()}
+              >
+                {loginBusy ? <span className="admin-spinner" /> : <KeyRound size={15} />}
+                {loginBusy ? 'Creating…' : 'Create login'}
+              </button>
+            </div>
+          )
+        }
+      >
+        {loginResult ? (
+          <div className="student-login-result">
+            <p>
+              Share these credentials with the student. The password is shown once and is not
+              stored in the school database.
+            </p>
+            <div>
+              <span>Email</span>
+              <code>{loginResult.email}</code>
+            </div>
+            {loginResult.password ? (
+              <div>
+                <span>Password</span>
+                <code>{loginResult.password}</code>
+              </div>
+            ) : null}
+            <div>
+              <span>Firebase UID</span>
+              <code>{loginResult.uid}</code>
+            </div>
+            {loginResult.linkedExisting ? (
+              <p className="muted small">
+                An existing Firebase account was linked and its password reset.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <form id="student-login-form" className="admin-form-grid" onSubmit={createLogin}>
+            <label className="admin-field admin-span-2">
+              <span>Portal email</span>
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(event) => setLoginEmail(event.target.value)}
+                placeholder="student@school.edu"
+                required
+                autoFocus
+              />
+            </label>
+            <label className="admin-field admin-span-2">
+              <span>Password (optional)</span>
+              <input
+                type="text"
+                value={loginPassword}
+                onChange={(event) => setLoginPassword(event.target.value)}
+                placeholder="Leave blank to generate one"
+                minLength={6}
+              />
+            </label>
+            <p className="muted small admin-span-2">
+              If this email already has a Firebase account, it will be linked and its password
+              reset. Leave the password blank to generate a one-time password.
+            </p>
+          </form>
+        )}
       </Modal>
 
       <Modal
@@ -679,7 +865,7 @@ export default function Students() {
   );
 }
 
-function StudentDetail({ data, student, onEdit }) {
+function StudentDetail({ data, student, busy, onEdit, onCreateLogin, onToggleLogin }) {
   const attendance = studentAttendance(data, student.id);
   const scores = studentScores(data, student.id);
   const average = studentAverage(data, student.id);
@@ -768,6 +954,81 @@ function StudentDetail({ data, student, onEdit }) {
           <strong>{student.admissionDate ? formatDate(student.admissionDate) : 'Not recorded'}</strong>
         </div>
       </div>
+
+      <section
+        className={`student-portal-card ${
+          student.authUid || student.authEmail
+            ? student.authDisabled
+              ? 'is-disabled'
+              : 'is-active'
+            : ''
+        }`}
+      >
+        <div className="student-portal-head">
+          <span>
+            <KeyRound size={15} /> Student portal
+          </span>
+          <Badge
+            tone={
+              student.authUid || student.authEmail
+                ? student.authDisabled
+                  ? 'warning'
+                  : 'success'
+                : 'neutral'
+            }
+          >
+            {student.authUid || student.authEmail
+              ? student.authDisabled
+                ? 'Disabled'
+                : 'Active'
+              : 'Not linked'}
+          </Badge>
+        </div>
+
+        {student.authEmail || student.authUid ? (
+          <div className="student-portal-meta">
+            <strong>{student.authEmail || 'Linked by Firebase UID'}</strong>
+            {student.authUid ? <small>UID {student.authUid}</small> : null}
+          </div>
+        ) : (
+          <p className="muted small">
+            No login yet. Create one so this student can open the student portal.
+          </p>
+        )}
+
+        <div className="student-portal-actions">
+          {!student.authUid ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary admin-btn-sm"
+              onClick={onCreateLogin}
+              disabled={busy}
+            >
+              <KeyRound size={14} /> Create login
+            </button>
+          ) : null}
+          {student.authUid && !student.authDisabled ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost admin-btn-sm"
+              onClick={() => onToggleLogin(false)}
+              disabled={busy}
+            >
+              <ShieldOff size={14} /> Disable access
+            </button>
+          ) : null}
+          {student.authUid && student.authDisabled ? (
+            <button
+              type="button"
+              className="admin-btn admin-btn-primary admin-btn-sm"
+              onClick={() => onToggleLogin(true)}
+              disabled={busy}
+            >
+              <ShieldCheck size={14} /> Enable access
+            </button>
+          ) : null}
+        </div>
+      </section>
 
       <div className="student-detail-section">
         <div className="admin-section-head compact">

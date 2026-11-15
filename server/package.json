@@ -35,6 +35,8 @@
                     "test:identity":  "node --test test/identity.test.mjs",
                     "test:remark":  "node test/report-remark.e2e.mjs",
                     "test:remark:ui":  "node test/report-remark-ui.e2e.mjs",
+                    "test:student":  "node --env-file-if-exists=.env test/student-portal.e2e.mjs",
+                    "test:student:unit":  "node --test test/student-portal.test.mjs",
                     "create:users":  "node --env-file-if-exists=.env scripts/create-auth-users.mjs",
                     "test:google":  "node --env-file-if-exists=.env test/google-mapping.e2e.mjs",
                     "deploy":  "wrangler deploy --config wrangler.jsonc"
