@@ -198,6 +198,7 @@ async function commitWrites(store, root, writes) {
     const batch = store.batch();
     for (const entry of chunk) {
       if (entry.kind === 'delete') batch.delete(entry.ref);
+      else if (entry.merge) batch.set(entry.ref, entry.data, { merge: true });
       else batch.set(entry.ref, entry.data);
     }
     await batch.commit();
@@ -293,21 +294,32 @@ export async function saveDbToFirestore(db, previous, changes = null) {
 
   // Meta always moves with a mutation: revision and timestamps are used by the
   // clients and by the delta-sync journal. A no-op save writes nothing.
+  //
+  // Only the fields that actually changed are written, as a merge. Isolates
+  // keep their own copy of the database, so a stale isolate that saves an
+  // unrelated change must not carry old profile fields (school name, address,
+  // academic year) back over a newer edit made elsewhere.
   const metaChanged =
     writeEverything ||
     !previous ||
     Number(db.meta?.layoutVersion || 1) < LAYOUT_VERSION ||
     JSON.stringify(db.meta) !== JSON.stringify(previous.meta);
   if (metaChanged) {
-    assertDocumentSize(`${FIRESTORE_ROOT}/meta`, db.meta || {});
+    const previousMeta = previous?.meta || {};
+    const changedMeta = {};
+    for (const [key, value] of Object.entries(db.meta || {})) {
+      if (JSON.stringify(value) !== JSON.stringify(previousMeta[key])) {
+        changedMeta[key] = value;
+      }
+    }
+    changedMeta.revision = rev;
+    changedMeta.layoutVersion = LAYOUT_VERSION;
+    assertDocumentSize(`${FIRESTORE_ROOT}/meta`, changedMeta);
     writes.push({
       kind: 'set',
       ref: root.doc('meta'),
-      data: {
-        ...(db.meta || {}),
-        revision: rev,
-        layoutVersion: LAYOUT_VERSION,
-      },
+      data: changedMeta,
+      merge: !writeEverything,
     });
     touched.add('meta');
   }
