@@ -18,8 +18,6 @@
 import { getD1Binding } from './d1-binding.js';
 import {
   COLLECTION_KEYS,
-  CONFIG_COLLECTIONS,
-  RECORD_COLLECTIONS,
   assertDocumentSize,
 } from './layout.js';
 
@@ -87,14 +85,12 @@ export async function loadDbFromD1() {
   const result = { meta: {} };
   for (const row of metaRows) result.meta[row.id] = JSON.parse(row.data);
 
-  for (const key of CONFIG_COLLECTIONS) result[key] = [];
+  for (const key of COLLECTION_KEYS) result[key] = [];
 
-  const configRows = await all(d1, "SELECT id, data FROM documents WHERE collection = '_config'");
-  for (const row of configRows) {
-    if (Object.hasOwn(result, row.id)) result[row.id] = JSON.parse(row.data);
-  }
-
-  for (const key of RECORD_COLLECTIONS) {
+  // Every collection is stored per record. A layout-v2 database still has one
+  // `_config` row per small collection; those are used only when the per-record
+  // rows are missing, and the next save rewrites them in layout v3.
+  for (const key of COLLECTION_KEYS) {
     const records = [];
     let lastId = '';
     for (;;) {
@@ -110,6 +106,16 @@ export async function loadDbFromD1() {
       lastId = rows[rows.length - 1].id;
     }
     result[key] = records;
+  }
+
+  const legacyConfig = await all(
+    d1,
+    "SELECT id, data FROM documents WHERE collection = '_config'"
+  );
+  for (const row of legacyConfig) {
+    if (Object.hasOwn(result, row.id) && result[row.id].length === 0) {
+      result[row.id] = JSON.parse(row.data);
+    }
   }
 
   return result;
@@ -195,23 +201,9 @@ export async function saveDbToD1(db, previous, changes = null) {
     deleteCount += 1;
   };
 
-  // Small collections: one row each.
-  for (const key of CONFIG_COLLECTIONS) {
-    const next = db[key] || [];
-    const prev = previous?.[key];
-    const hinted =
-      changeSet.full || changeSet.collections.has(key) || changeSet.records.has(key);
-    const changed =
-      writeEverything ||
-      hinted ||
-      (previous ? JSON.stringify(next) !== JSON.stringify(prev) : true);
-    if (!changed) continue;
-    upsert('_config', key, next);
-    touched.add(key);
-  }
-
-  // High-growth collections: one row per record.
-  for (const key of RECORD_COLLECTIONS) {
+  // Every collection: one row per record. Per-record rows keep each INSERT
+  // under D1's statement limit even when a collection is large.
+  for (const key of COLLECTION_KEYS) {
     const next = db[key] || [];
     const prev = previous?.[key];
     const hinted = changeSet.full || changeSet.collections.has(key);
@@ -246,6 +238,11 @@ export async function saveDbToD1(db, previous, changes = null) {
       if (!id) continue;
       remove(key, id);
     }
+  }
+
+  if (writeEverything) {
+    // Layout v2 stored small collections as one row each; v3 does not.
+    statements.push(d1.prepare("DELETE FROM documents WHERE collection = '_config'"));
   }
 
   // Meta: one row per field, so unrelated edits from another isolate survive.

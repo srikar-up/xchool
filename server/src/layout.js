@@ -1,15 +1,18 @@
 /**
  * Shared database layout.
  *
- * The API keeps the whole school in memory and persists it as:
+ * The API keeps the whole school in memory and persists it to D1 as:
  *
  *   meta fields                    one row each
- *   small collections              one row each (the array)
- *   high-growth collections        one row per record
+ *   every collection               one row per record
  *
- * The same shape is used by the D1 backend. The old Firestore backend (being
- * removed) also used it, so the constants live here instead of in a storage
- * driver.
+ * D1 limits a single SQL statement to ~100 KB. Storing a whole `exams` or
+ * `timetable` array in one row breaks that limit at school scale, so every
+ * collection is now split into per-record rows.
+ *
+ * `RECORD_COLLECTIONS` still means "grows with every school day or exam" for
+ * delta sync and for the slices a client fetches; it no longer selects the
+ * storage shape.
  */
 export const COLLECTION_KEYS = [
   'staff',
@@ -30,8 +33,8 @@ export const COLLECTION_KEYS = [
 ];
 
 /**
- * Collections that grow with every school day or exam. These are stored as one
- * row per record so a single register or mark never bloats a collection row.
+ * Collections that grow with every school day or exam. Clients fetch these as
+ * separate slices, and a mutation usually touches a handful of rows.
  */
 export const RECORD_COLLECTIONS = [
   'students',
@@ -44,10 +47,14 @@ export const CONFIG_COLLECTIONS = COLLECTION_KEYS.filter(
   (key) => !RECORD_COLLECTIONS.includes(key)
 );
 
-export const LAYOUT_VERSION = 2;
+/** Layout 3 stores every collection as one row per record. */
+export const LAYOUT_VERSION = 3;
 
-/** A stored row must stay well under D1's practical response limits. */
-export const MAX_DOCUMENT_BYTES = 900 * 1024;
+/**
+ * D1 rejects a SQL statement over ~100 KB. A record is written as one INSERT,
+ * so keep the JSON well below that (quotes are escaped in the statement).
+ */
+export const MAX_DOCUMENT_BYTES = 80 * 1024;
 
 export function documentBytes(value) {
   const text = JSON.stringify(value);

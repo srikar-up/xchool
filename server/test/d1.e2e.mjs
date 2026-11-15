@@ -149,7 +149,7 @@ try {
   const health = await waitForApi();
 
   check('mode is d1', health.mode === 'd1', health.mode);
-  check('fresh database seeded', health.layoutVersion === 2);
+  check('fresh database seeded', health.layoutVersion === 3);
   const seededRevision = health.revision;
 
   if (API_KEY) {

@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LAYOUT_VERSION } from '../src/layout.js';
 
 const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT_DIR = path.resolve(SERVER_DIR, '..');
@@ -90,7 +91,7 @@ async function readFirestore() {
   if (!metaSnap.exists) fail('Firestore has no school/meta document.');
   const meta = metaSnap.data() || {};
 
-  const db = { meta: { ...meta, layoutVersion: 2 } };
+  const db = { meta: { ...meta, layoutVersion: LAYOUT_VERSION } };
 
   const legacy = Number(meta.layoutVersion || 1) < 2;
   if (legacy) {
@@ -157,10 +158,11 @@ function buildSql(db) {
   };
 
   for (const [key, value] of Object.entries(db.meta || {})) insert('_meta', key, value);
-  for (const key of CONFIG_COLLECTIONS) insert('_config', key, db[key] || []);
-  for (const key of RECORD_COLLECTIONS) {
+  for (const key of COLLECTION_KEYS) {
     for (const record of db[key] || []) {
-      if (!record?.id) continue;
+      if (!record?.id) {
+        throw new Error(`A ${key} record has no id; refusing to import a partial dataset.`);
+      }
       insert(key, record.id, record);
     }
   }
@@ -212,7 +214,7 @@ try {
 
   db.meta = {
     ...db.meta,
-    layoutVersion: 2,
+    layoutVersion: LAYOUT_VERSION,
     // A new revision tells every client to drop its cache and refetch.
     revision: Number(db.meta?.revision || 0) + 1,
     updatedAt: new Date().toISOString(),

@@ -265,20 +265,17 @@ can never resolve to a staff record (or the other way round).
 
 The original prototype stored one document per collection, which does not work
 once a school has a few hundred students: a whole attendance history or marks
-table in one row is slow to read and write, and two Worker isolates can
-overwrite each other's unrelated records.
+table in one row is slow to read and write, lets two Worker isolates overwrite
+each other's unrelated records, and D1 rejects a SQL statement over ~100 KB.
 
-The server now uses layout v2:
+The server now uses layout v3:
 
 - `documents('_meta', <field>)` — one row per `meta` field (revision, school
   profile, layout version).
-- `documents('_config', <collection>)` — one row per small collection
-  (`staff`, `classes`, `subjects`, `curricula`, `timetable`, `exams`,
-  `assignments`, `classIncharges`, `announcements`, `rmsTickets`, `activities`).
-- `documents('students', <id>)` — one row per student.
-- `documents('attendanceSessions', <id>)` — one row per class/date/session.
-- `documents('testRecords', <id>)` — one row per student/exam mark.
-- `documents('staffAttendance', <id>)` — one row per staff/day.
+- `documents(<collection>, <id>)` — **one row per record** for every collection:
+  `staff`, `classes`, `students`, `subjects`, `curricula`, `timetable`, `exams`,
+  `testRecords`, `assignments`, `attendanceSessions`, `staffAttendance`,
+  `classIncharges`, `announcements`, `rmsTickets`, `activities`.
 
 A register submission writes the register row plus the changed meta fields and
 the capped activity log — a handful of D1 rows, regardless of how many students
@@ -286,10 +283,10 @@ are enrolled. One student edit writes one row. Reads are paginated by id, so a
 cold isolate can load a large attendance history without hitting a response
 limit.
 
-Layout v1 is migrated on boot: the old collection rows are read once, rewritten
-per record, and deleted. `saveDbToD1` enforces a **900 KiB safety limit** per
-row before writing, and the SuperAdmin diagnostic endpoint shows the current
-sizes.
+Layout v2 (one row per small collection) is read once and migrated on boot: the
+old `_config` rows are expanded to per-record rows and deleted.
+`saveDbToD1` enforces an **80 KiB safety limit** per record before writing, and
+the SuperAdmin diagnostic endpoint shows the current sizes.
 
 ### Delta sync
 
