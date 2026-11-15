@@ -272,7 +272,7 @@ export default function Exams() {
   const exportResults = () => {
     if (!selectedResultExam) return;
     downloadCsv(
-      `nawaz-results-${selectedResultExam.id}.csv`,
+      `xchool-results-${selectedResultExam.id}.csv`,
       ['roll_number', 'student_id', 'student_name', 'marks_obtained', 'max_marks', 'percentage', 'grade'],
       resultRows.map(({ student, record, percentage }) => [
         student.rollNumber,

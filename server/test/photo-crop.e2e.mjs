@@ -20,8 +20,8 @@ const SERVER_DIR = path.join(ROOT, 'server');
 const TEACHER_DIR = path.join(ROOT, 'teacher-app');
 const API = 'http://127.0.0.1:4100';
 const UI = 'http://127.0.0.1:5175';
-const FOLDER_PREFIX = 'test/nawaz-school';
-const STAFF_ID = 'STF-002';
+const FOLDER_PREFIX = 'test/xchool-school';
+const STAFF_ID = '900002';
 
 const CHROME = path.join(
   process.env.LOCALAPPDATA || '',
@@ -46,7 +46,7 @@ const cloudinaryEnv = {
   CLOUDINARY_FOLDER_PREFIX: FOLDER_PREFIX,
 };
 
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nawaz-photo-crop-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'xchool-photo-crop-'));
 const children = [];
 
 function start(command, args, options = {}) {
@@ -223,7 +223,7 @@ try {
   await page.fill('input[type="password"]', 'teacher123');
   await page.click('button[type="submit"]');
   await page.waitForFunction(
-    () => Boolean(window.localStorage.getItem('nawaz.teacher.session.v1')),
+    () => Boolean(window.localStorage.getItem('xchool.teacher.session.v1')),
     null,
     { timeout: 45000 }
   );

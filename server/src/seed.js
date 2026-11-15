@@ -1,5 +1,5 @@
 /**
- * Seed data for the Nawaz School prototype.
+ * Seed data for the Xchool prototype.
  *
  * This is deliberately a single school, one academic year, realistic enough to
  * exercise every screen. It is generated relative to "today" so that today's
@@ -8,6 +8,7 @@
 
 import { upcomingSundayISO } from './timetable.js';
 import { buildCurriculaFromSubjects } from './curriculum.js';
+import { migrateIdentity } from './identity.js';
 
 const SCHEMA_VERSION = 1;
 
@@ -1208,12 +1209,14 @@ export function buildSeed() {
     };
   });
 
-  return {
+  // Clone before migrating: the module-level STAFF/CLASS_SEEDS arrays are the
+  // authored templates and must stay readable for the next buildSeed() call.
+  const database = structuredClone({
     meta: {
       schemaVersion: SCHEMA_VERSION,
       revision: 1,
-      schoolName: 'Nawaz School System',
-      shortName: 'Nawaz School',
+      schoolName: 'Xchool',
+      shortName: 'Xchool',
       tagline: 'Learn. Grow. Lead.',
       academicYear: '2026–2027',
       attendanceMode: 'twoSessions',
@@ -1247,7 +1250,13 @@ export function buildSeed() {
     announcements,
     rmsTickets,
     activities,
-  };
+  });
+
+  // The seed is authored with readable ids (STU-10A-01, STF-001) because that
+  // is easier to follow. Run the same migration the live data uses so a fresh
+  // database is born with the numeric scheme and needs no special case.
+  migrateIdentity(database);
+  return database;
 }
 
 export { SCHEMA_VERSION };

@@ -36,7 +36,7 @@ export default function Login() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    document.title = 'Sign in · Nawaz School Teacher';
+    document.title = 'Sign in · Xchool Teacher';
   }, []);
 
   if (session) return <Navigate to="/" replace />;
@@ -99,11 +99,11 @@ export default function Login() {
           <span className="login-logo">
             <img
               src={`${import.meta.env.BASE_URL}school-logo.jpg`}
-              alt="Nawaz School crest"
+              alt="Xchool crest"
             />
           </span>
           <div>
-            <strong>Nawaz School</strong>
+            <strong>Xchool</strong>
             <small>Teacher Mobile Workspace</small>
           </div>
         </div>
@@ -224,7 +224,7 @@ export default function Login() {
           </p>
         </form>
 
-        <p className="login-footer">Nawaz School System · Learn. Grow. Lead.</p>
+        <p className="login-footer">Xchool · Learn. Grow. Lead.</p>
       </div>
     </div>
   );

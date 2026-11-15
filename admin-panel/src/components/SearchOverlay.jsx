@@ -42,6 +42,9 @@ export default function SearchOverlay({ open, onClose }) {
         (student) =>
           student.name.toLowerCase().includes(text) ||
           student.code.toLowerCase().includes(text) ||
+          (student.legacyIds || []).some((id) =>
+            String(id).toLowerCase().includes(text)
+          ) ||
           student.rollNumber.includes(text) ||
           student.classIdSection.toLowerCase().includes(text)
       )
@@ -51,7 +54,8 @@ export default function SearchOverlay({ open, onClose }) {
         (member) =>
           member.name.toLowerCase().includes(text) ||
           member.email.toLowerCase().includes(text) ||
-          member.department.toLowerCase().includes(text)
+          member.department.toLowerCase().includes(text) ||
+          (member.legacyIds || []).some((id) => String(id).toLowerCase().includes(text))
       )
       .slice(0, 4);
     const announcements = data.announcements

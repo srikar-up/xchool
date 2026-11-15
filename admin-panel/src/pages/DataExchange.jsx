@@ -287,7 +287,7 @@ export default function DataExchange() {
                       ],
                       { type: 'application/json' }
                     ),
-                    `nawaz-school-data-${todayISO()}.json`
+                    `xchool-data-${todayISO()}.json`
                   )
                 }
               >

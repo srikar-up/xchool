@@ -3,8 +3,8 @@
 ## 1. Repository structure
 
 ```text
-nawaz school/
-├── lib/                              # Flutter application package: nawaz_school
+xchool/
+├── lib/                              # Flutter application package: xchool
 │   ├── main.dart                     # Firebase init attempt + teacher app root
 │   ├── core/                         # Re-export shims to package:core_shared
 │   │   ├── data/mock_database.dart   # export only
@@ -74,7 +74,7 @@ flowchart TD
     A[main.dart] --> B{Firebase.initializeApp succeeds?}
     B -->|yes| C[Firebase available]
     B -->|no / throws| D[Silently ignored]
-    C --> E[NawazSchoolTeacherApp]
+    C --> E[XchoolTeacherApp]
     D --> E
     E --> F[SplashScreen]
     F -->|1 second| G[MainNavScreen]
@@ -322,7 +322,7 @@ Most cloud writes are wrapped in `try { ... } catch (_) {}`. Failures are invisi
 ### 7.4 Testing
 
 - 6 test files plus a wrapper.
-- Tests target `package:nawaz_school/models/...` and `package:nawaz_school/services/...` (legacy layer).
+- Tests target `package:xchool/models/...` and `package:xchool/services/...` (legacy layer).
 - The running app targets `core_shared`.
 - `flutter test` currently gives **22 passed, 5 failed**; the failures are compile/type breaks from the duplicate models.
 - No widget tests, no integration tests, no Firestore emulator tests.

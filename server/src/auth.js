@@ -23,9 +23,11 @@ export async function verifyIdToken(token) {
  * Authenticates the request with a Firebase ID token and resolves the matching
  * staff record.
  *
- * Firebase UIDs are created equal to the staff id (STF-001, ...) by
+ * Firebase UIDs are created equal to the staff id (900001, ...) by
  * scripts/create-auth-users.mjs, so the token identifies the person directly.
- * Nothing about identity is read from the request body or headers.
+ * Accounts created before the numeric ids still use the old uid; those are
+ * matched through `legacyIds`. Nothing about identity is read from the request
+ * body or headers.
  */
 /**
  * Resolves the staff record a verified token belongs to.
@@ -37,6 +39,17 @@ export async function verifyIdToken(token) {
 export function resolveStaff(db, decoded) {
   const direct = db.staff.find((member) => member.id === decoded?.uid);
   if (direct) return direct;
+
+  // Password accounts created before the numeric id migration still carry the
+  // old uid (STF-001). Staff records keep that value in `legacyIds` so the same
+  // sign-in keeps working without recreating the Firebase user.
+  const uid = String(decoded?.uid || '').trim();
+  if (uid) {
+    const legacy = db.staff.find(
+      (member) => Array.isArray(member.legacyIds) && member.legacyIds.map(String).includes(uid)
+    );
+    if (legacy) return legacy;
+  }
 
   const email = String(decoded?.email || '').trim().toLowerCase();
   if (!decoded?.email_verified || !email) return null;

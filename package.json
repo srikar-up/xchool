@@ -1,8 +1,8 @@
 {
-  "name": "nawaz-school-rms",
+  "name": "xchool",
   "version": "1.0.0",
   "private": true,
-  "description": "Nawaz School RMS — Teacher PWA + Admin Panel + temporary local Node/JSON data layer",
+  "description": "Xchool RMS — Teacher PWA + Admin Panel + temporary local Node/JSON data layer",
   "workspaces": [
     "server",
     "teacher-app",
@@ -47,6 +47,7 @@
     "test:delta": "node server/test/delta-sync.e2e.mjs",
     "test:state-patch": "node --test server/test/state-patch.test.mjs",
     "test:import-validation": "node --test server/test/import-validation.test.mjs",
+    "test:identity": "node --test server/test/identity.test.mjs",
     "test:remark": "node server/test/report-remark.e2e.mjs",
     "test:remark:ui": "node server/test/report-remark-ui.e2e.mjs",
     "test:load": "node server/scripts/load-test.mjs",

@@ -63,6 +63,13 @@ import {
   validatePeriods,
 } from './timetable.js';
 import { isoDaysAgo, pruneActivityRecords } from './maintenance.js';
+import {
+  migrateIdentity,
+  needsIdentityMigration,
+  nextStaffId,
+  nextStudentId,
+  studentCodeProblem,
+} from './identity.js';
 
 const __dirname = (() => {
   try {
@@ -95,12 +102,12 @@ const ACTIVITY_LIMIT = Math.max(Number(process.env.ACTIVITY_LIMIT) || 150, 1);
 
 const ACCOUNTS = new Map(
   [
-    { email: 'admin@nawazschool.edu', password: 'admin123', staffId: 'STF-001' },
-    { email: 'subadmin@nawazschool.edu', password: 'subadmin123', staffId: 'STF-007' },
-    { email: 'teacher@nawazschool.edu', password: 'teacher123', staffId: 'STF-002' },
-    { email: 'imran@nawazschool.edu', password: 'teacher123', staffId: 'STF-003' },
-    { email: 'ayesha@nawazschool.edu', password: 'teacher123', staffId: 'STF-004' },
-    { email: 'bilal@nawazschool.edu', password: 'teacher123', staffId: 'STF-005' },
+    { email: 'admin@nawazschool.edu', password: 'admin123' },
+    { email: 'subadmin@nawazschool.edu', password: 'subadmin123' },
+    { email: 'teacher@nawazschool.edu', password: 'teacher123' },
+    { email: 'imran@nawazschool.edu', password: 'teacher123' },
+    { email: 'ayesha@nawazschool.edu', password: 'teacher123' },
+    { email: 'bilal@nawazschool.edu', password: 'teacher123' },
   ].map((account) => [account.email, account])
 );
 
@@ -190,23 +197,12 @@ function effectiveExamStatus(exam) {
   return new Date() > endsAt ? 'Open' : 'Upcoming';
 }
 
-function nextStudentCode(db, classIdSection, rollNumber) {
-  return `STU-${classIdSection.replace('-', '')}-${rollNumber}`;
-}
-
 function nextRollNumber(db, classIdSection) {
   const rolls = db.students
     .filter((student) => student.classIdSection === classIdSection)
     .map((student) => Number.parseInt(student.rollNumber, 10))
     .filter((number) => Number.isFinite(number));
   return String((rolls.length ? Math.max(...rolls) : 0) + 1).padStart(2, '0');
-}
-
-function nextStaffCode(db) {
-  const numbers = db.staff
-    .map((member) => Number.parseInt(String(member.code || member.id).replace(/\D/g, ''), 10))
-    .filter((number) => Number.isFinite(number));
-  return `STF-${String((numbers.length ? Math.max(...numbers) : 0) + 1).padStart(3, '0')}`;
 }
 
 function nextTicketNumber(db) {
@@ -255,7 +251,9 @@ app.post('/api/auth/login', (req, res) => {
   if (!account || account.password !== password) {
     return res.status(401).json({ error: 'Incorrect email or password.' });
   }
-  const staff = db.staff.find((member) => member.id === account.staffId);
+  const staff = db.staff.find(
+    (member) => String(member.email || '').trim().toLowerCase() === email
+  );
   if (!staff) {
     return res.status(401).json({ error: 'This account no longer exists.' });
   }
@@ -581,9 +579,27 @@ app.post('/api/students', requireActor, requireAdmin, (req, res) => {
     return res.status(409).json({ error: `Roll ${rollNumber} is already used in ${classIdSection}.` });
   }
 
-  let code = str(body.code || body.studentCode) || nextStudentCode(db, classIdSection, rollNumber);
-  if (db.students.some((student) => student.code === code || student.id === code)) {
-    return res.status(409).json({ error: `Student code ${code} already exists.` });
+  const admissionDate = str(body.admissionDate) || isoNow().slice(0, 10);
+  let code = str(body.code || body.studentCode);
+  if (code) {
+    const problem = studentCodeProblem(code, admissionDate);
+    if (problem) return res.status(400).json({ error: problem });
+  } else {
+    try {
+      code = nextStudentId(db, admissionDate);
+    } catch (error) {
+      return res.status(409).json({ error: error.message });
+    }
+  }
+  if (
+    db.students.some(
+      (student) =>
+        student.code === code ||
+        student.id === code ||
+        (Array.isArray(student.legacyIds) && student.legacyIds.includes(code))
+    )
+  ) {
+    return res.status(409).json({ error: `Student ID ${code} already exists.` });
   }
 
   const student = {
@@ -597,7 +613,7 @@ app.post('/api/students', requireActor, requireAdmin, (req, res) => {
     gender: str(body.gender) || 'Not specified',
     dateOfBirth: str(body.dateOfBirth),
     address: str(body.address),
-    admissionDate: str(body.admissionDate) || new Date().toISOString().slice(0, 10),
+    admissionDate,
     status: str(body.status) || 'Active',
     createdAt: isoNow(),
   };
@@ -756,6 +772,8 @@ app.post('/api/students/bulk', requireActor, requireAdmin, (req, res) => {
       const name = str(raw.name);
       const classIdSection = str(raw.class_id_section || raw.classIdSection || raw.class);
       const code = str(raw.student_id || raw.code || raw.studentCode);
+      const admissionDate =
+        str(raw.admission_date || raw.admissionDate) || isoNow().slice(0, 10);
       if (!name) {
         errors.push({ row: rowNumber, message: 'Name is required.' });
         return;
@@ -766,7 +784,10 @@ app.post('/api/students/bulk', requireActor, requireAdmin, (req, res) => {
       }
       const existing = code
         ? current.students.find(
-            (student) => student.code === code || student.id === code
+            (student) =>
+              student.code === code ||
+              student.id === code ||
+              (Array.isArray(student.legacyIds) && student.legacyIds.includes(code))
           )
         : current.students.find(
             (student) =>
@@ -797,9 +818,30 @@ app.post('/api/students/bulk', requireActor, requireAdmin, (req, res) => {
         trackRecord('students', existing.id);
         updated += 1;
       } else {
-        const finalCode = code || nextStudentCode(current, classIdSection, roll);
-        if (current.students.some((student) => student.code === finalCode)) {
-          errors.push({ row: rowNumber, message: `Student code ${finalCode} already exists.` });
+        let finalCode = code;
+        if (finalCode) {
+          const problem = studentCodeProblem(finalCode, admissionDate);
+          if (problem) {
+            errors.push({ row: rowNumber, message: problem });
+            return;
+          }
+        } else {
+          try {
+            finalCode = nextStudentId(current, admissionDate);
+          } catch (error) {
+            errors.push({ row: rowNumber, message: error.message });
+            return;
+          }
+        }
+        if (
+          current.students.some(
+            (student) =>
+              student.code === finalCode ||
+              student.id === finalCode ||
+              (Array.isArray(student.legacyIds) && student.legacyIds.includes(finalCode))
+          )
+        ) {
+          errors.push({ row: rowNumber, message: `Student ID ${finalCode} already exists.` });
           return;
         }
         current.students.push({
@@ -813,7 +855,7 @@ app.post('/api/students/bulk', requireActor, requireAdmin, (req, res) => {
           gender: str(raw.gender) || 'Not specified',
           dateOfBirth: str(raw.date_of_birth || raw.dateOfBirth),
           address: str(raw.address),
-          admissionDate: isoNow().slice(0, 10),
+          admissionDate,
           status: 'Active',
           createdAt: isoNow(),
         });
@@ -851,7 +893,7 @@ app.post('/api/staff', requireActor, requireSuperAdmin, (req, res) => {
     return res.status(409).json({ error: 'That email address is already in use.' });
   }
 
-  const code = nextStaffCode(db);
+  const code = nextStaffId(db);
   const member = {
     id: code,
     code,
@@ -2231,6 +2273,24 @@ app.post('/api/import', requireActor, requireSuperAdmin, (req, res) => {
     return res.status(400).json({ error: 'No recognized school datasets were provided.' });
   }
 
+  // A backup exported before numeric ids existed still carries STU-…/STF-…
+  // keys. Upgrade the bundle first; the mapping is deterministic, so restoring
+  // the school's own backup reproduces the same numbers as the live database.
+  let importedIdentity = { staffMap: new Map(), studentMap: new Map() };
+  if (needsIdentityMigration(incoming)) {
+    try {
+      importedIdentity = migrateIdentity(incoming, { force: true });
+      console.log(
+        `[import] upgraded legacy ids in the bundle: ${importedIdentity.students} student(s), ${importedIdentity.staff} staff member(s).`
+      );
+    } catch (error) {
+      return res.status(422).json({
+        error: error.message,
+        errors: [{ collection: 'students', row: 0, field: 'id', message: error.message }],
+      });
+    }
+  }
+
   const current = getDb();
   const importedSchemaVersion = incoming.meta?.schemaVersion;
   if (
@@ -2280,7 +2340,18 @@ app.post('/api/import', requireActor, requireSuperAdmin, (req, res) => {
   // percentages consistent.
   normalizeImportedData(merged);
 
-  const errors = validateImportedData(merged, { actorId: req.actor.id });
+  // The signed-in administrator must still exist after the merge. When an old
+  // bundle was upgraded above, follow the actor's legacy id through the map.
+  let actorId = req.actor.id;
+  for (const candidate of [req.actor.id, ...(req.actor.legacyIds || [])]) {
+    const mapped = importedIdentity.staffMap.get(String(candidate));
+    if (mapped) {
+      actorId = mapped;
+      break;
+    }
+  }
+
+  const errors = validateImportedData(merged, { actorId });
   if (errors.length) {
     return res.status(422).json({
       error: 'Import validation failed. Nothing was written.',
@@ -2574,11 +2645,11 @@ mountSpa('/admin', adminDist, 'Admin panel');
 if (IS_WORKERS) {
   app.get('/', (req, res) => {
     res.json({
-      service: 'Nawaz School API',
+      service: 'Xchool API',
       status: 'ok',
       docs: '/api/health',
-      teacherApp: 'https://nawaz-school-teacher.srikarsensai.workers.dev',
-      adminPanel: 'https://nawaz-school-admin.srikarsensai.workers.dev',
+      teacherApp: 'https://xchool-teacher.srikarsensai.workers.dev',
+      adminPanel: 'https://xchool-admin.srikarsensai.workers.dev',
     });
   });
 } else {
@@ -2605,7 +2676,7 @@ ready.finally(() => {
   app.listen(PORT, () => {
       const db = getDb();
       console.log('');
-      console.log('  Nawaz School RMS - local prototype server');
+      console.log('  Xchool RMS - local prototype server');
       console.log(`  API:      http://localhost:${PORT}/api/health`);
       console.log(`  Launcher: http://localhost:${PORT}/`);
       console.log(`  Teacher:  http://localhost:${PORT}/teacher/  (dev: http://localhost:5173/)`);

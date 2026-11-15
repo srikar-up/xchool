@@ -4,11 +4,11 @@ export default function AppLoading({ label = 'Loading your workspace' }) {
       <div className="app-loading-brand">
         <img
           src={`${import.meta.env.BASE_URL}school-logo.jpg`}
-          alt="Nawaz School crest"
+          alt="Xchool crest"
           className="app-loading-logo"
         />
         <div className="app-loading-name">
-          <strong>Nawaz School</strong>
+          <strong>Xchool</strong>
           <small>Teacher workspace</small>
         </div>
       </div>

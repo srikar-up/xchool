@@ -69,8 +69,8 @@ The main teacher/admin screens compile because they import the canonical `core_s
 ### 1.4 Workbook reality check
 
 ```text
-nawaz school (1).xlsx             → 8 sheets
-nawaz_school_master_database.xlsx → 9 sheets
+xchool (1).xlsx             → 8 sheets
+xchool_master_database.xlsx → 9 sheets
 ExcelMasterService.requiredSheetOrder → 14 sheets
 ```
 

@@ -97,7 +97,7 @@ try {
 
   const teacherPage = await browser.newPage();
   teacherPage.on('pageerror', (error) => console.log('teacher pageerror:', error.message));
-  await login(teacherPage, TEACHER_URL, 'teacher@nawazschool.edu', 'teacher123', 'nawaz.teacher.session.v1');
+  await login(teacherPage, TEACHER_URL, 'teacher@nawazschool.edu', 'teacher123', 'xchool.teacher.session.v1');
   await teacherPage.goto(`${TEACHER_URL}/attendance`, { waitUntil: 'domcontentloaded' });
   await teacherPage.waitForSelector('[aria-label="Session"] button', { timeout: 40000 });
 
@@ -146,7 +146,7 @@ try {
   // ---------- admin UI ----------
   const adminPage = await browser.newPage();
   adminPage.on('pageerror', (error) => console.log('admin pageerror:', error.message));
-  await login(adminPage, ADMIN_URL, 'admin@nawazschool.edu', 'admin123', 'nawaz.admin.session.v1');
+  await login(adminPage, ADMIN_URL, 'admin@nawazschool.edu', 'admin123', 'xchool.admin.session.v1');
 
   await adminPage.goto(`${ADMIN_URL}/settings`, { waitUntil: 'domcontentloaded' });
   await adminPage.waitForSelector('input[name="attendanceMode"]', { timeout: 40000 });

@@ -108,7 +108,7 @@ try {
     TEACHER_URL,
     'teacher@nawazschool.edu',
     'teacher123',
-    'nawaz.teacher.session.v1'
+    'xchool.teacher.session.v1'
   );
   await teacherPage.goto(`${TEACHER_URL}/attendance`, { waitUntil: 'domcontentloaded' });
   await teacherPage.waitForSelector('.attendance-switch button', { timeout: 40000 });
@@ -149,7 +149,7 @@ try {
   const adminPage = await browser.newPage();
   const adminErrors = [];
   adminPage.on('pageerror', (error) => adminErrors.push(error.message));
-  await login(adminPage, ADMIN_URL, 'admin@nawazschool.edu', 'admin123', 'nawaz.admin.session.v1');
+  await login(adminPage, ADMIN_URL, 'admin@nawazschool.edu', 'admin123', 'xchool.admin.session.v1');
 
   await adminPage.getByRole('button', { name: /open help and quick guides/i }).click();
   await adminPage.waitForSelector('.help-item', { timeout: 15000 });

@@ -1,9 +1,9 @@
 {
-  "name": "nawaz-teacher-app",
+  "name": "xchool-teacher",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Nawaz School teacher workspace — mobile-first React PWA",
+  "description": "Xchool teacher workspace — mobile-first React PWA",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

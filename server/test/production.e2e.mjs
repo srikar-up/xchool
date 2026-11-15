@@ -9,9 +9,9 @@ import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const TEACHER_URL = process.env.TEACHER_URL || 'https://nawaz-school-teacher.srikarsensai.workers.dev';
-const ADMIN_URL = process.env.ADMIN_URL || 'https://nawaz-school-admin.srikarsensai.workers.dev';
-const API_HOST = new URL(process.env.API_URL || 'https://nawaz-school-api.srikarsensai.workers.dev').host;
+const TEACHER_URL = process.env.TEACHER_URL || 'https://xchool-teacher.srikarsensai.workers.dev';
+const ADMIN_URL = process.env.ADMIN_URL || 'https://xchool-admin.srikarsensai.workers.dev';
+const API_HOST = new URL(process.env.API_URL || 'https://xchool-api.srikarsensai.workers.dev').host;
 
 const CHROME = path.join(
   process.env.LOCALAPPDATA || '',
@@ -62,8 +62,8 @@ async function login(baseUrl, email, password) {
     .waitForFunction(
       () =>
         Boolean(
-          localStorage.getItem('nawaz.teacher.session.v1') ||
-            localStorage.getItem('nawaz.admin.session.v1')
+          localStorage.getItem('xchool.teacher.session.v1') ||
+            localStorage.getItem('xchool.admin.session.v1')
         ),
       null,
       { timeout: 40000 }
@@ -73,7 +73,7 @@ async function login(baseUrl, email, password) {
 
   const text = (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 120);
   const authenticated = await page.evaluate(() =>
-    Boolean(window.localStorage.getItem('nawaz.teacher.session.v1') || window.localStorage.getItem('nawaz.admin.session.v1'))
+    Boolean(window.localStorage.getItem('xchool.teacher.session.v1') || window.localStorage.getItem('xchool.admin.session.v1'))
   );
 
   await page.close();

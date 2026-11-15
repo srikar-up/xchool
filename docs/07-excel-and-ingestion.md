@@ -8,8 +8,8 @@
 
 | Artifact | Sheets | Status |
 | :--- | :---: | :--- |
-| `nawaz school (1).xlsx` (repo root) | **8** | Legacy sample: students, attendance, marks, timetable, syllabus, RMS, exams, staff. |
-| `nawaz_school_master_database.xlsx` (repo root) | **9** | Legacy sample plus announcements. |
+| `xchool (1).xlsx` (repo root) | **8** | Legacy sample: students, attendance, marks, timetable, syllabus, RMS, exams, staff. |
+| `xchool_master_database.xlsx` (repo root) | **9** | Legacy sample plus announcements. |
 | `tool/generate_master_excel.dart` | **9** | Old generator matching the 9-sheet file. |
 | `ExcelMasterService` / UI | **14** | Current intended master workbook, generated at runtime. |
 
@@ -21,7 +21,7 @@ The UI text is inconsistent: some labels say “8 sheets”, some “7 datasets�
 
 ## 2. Canonical 14-sheet workbook
 
-File name: `nawaz_school_master_database.xlsx`
+File name: `xchool_master_database.xlsx`
 
 Sheet order (from `ExcelMasterService.requiredSheetOrder`):
 
@@ -207,7 +207,7 @@ announcement_id | title | content | importance_level | target_audience | publish
 
 ## 3. The legacy 8/9-sheet files
 
-### 3.1 8-sheet file: `nawaz school (1).xlsx`
+### 3.1 8-sheet file: `xchool (1).xlsx`
 
 Sheets:
 
@@ -220,7 +220,7 @@ Sheets:
 7. `exam_schedules` — legacy exams
 8. `staff_access` — `Staff ID | Name | Role | Access Level | Email | Department`
 
-### 3.2 9-sheet file: `nawaz_school_master_database.xlsx`
+### 3.2 9-sheet file: `xchool_master_database.xlsx`
 
 Same as above plus `announcements`.
 

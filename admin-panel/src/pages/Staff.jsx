@@ -87,7 +87,8 @@ export default function Staff() {
             member.name.toLowerCase().includes(text) ||
             member.email.toLowerCase().includes(text) ||
             member.department.toLowerCase().includes(text) ||
-            member.code.toLowerCase().includes(text);
+            member.code.toLowerCase().includes(text) ||
+            (member.legacyIds || []).some((id) => String(id).toLowerCase().includes(text));
           const matchesAccess = accessFilter === 'all' || member.accessLevel === accessFilter;
           const matchesType = typeFilter === 'all' || member.staffType === typeFilter;
           return matchesSearch && matchesAccess && matchesType;
@@ -199,7 +200,7 @@ export default function Staff() {
 
   const exportCsv = () => {
     downloadCsv(
-      'nawaz-staff.csv',
+      'xchool-staff.csv',
       ['staff_id', 'name', 'email', 'phone', 'staff_type', 'access_level', 'department', 'active'],
       filtered.map((member) => [
         member.code,

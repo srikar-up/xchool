@@ -46,13 +46,13 @@ const results = [];
   const teacherPage = await fetch(`${BASE}/teacher/`);
   assert.equal(teacherPage.status, 200);
   const teacherHtml = await teacherPage.text();
-  assert.ok(teacherHtml.includes('Nawaz School'));
+  assert.ok(teacherHtml.includes('Xchool'));
   assert.ok(teacherHtml.includes('/teacher/assets/'));
 
   const adminPage = await fetch(`${BASE}/admin/`);
   assert.equal(adminPage.status, 200);
   const adminHtml = await adminPage.text();
-  assert.ok(adminHtml.includes('Nawaz School'));
+  assert.ok(adminHtml.includes('Xchool'));
   assert.ok(adminHtml.includes('/admin/assets/'));
   log('Static PWAs', 'teacher + admin bundles served');
 
@@ -325,7 +325,7 @@ const importPayload = {
 };
 importPayload.collections.meta = {
   ...adminState.meta,
-  shortName: 'Nawaz Import Test',
+  shortName: 'Xchool Import Test',
 };
 const imported = await api('/api/import', {
   method: 'POST',
@@ -335,7 +335,7 @@ const imported = await api('/api/import', {
 assert.equal(imported.status, 200);
 assert.equal(imported.payload.mode, 'replace');
 const afterImport = (await api('/api/state', { staffId: adminId })).payload;
-assert.equal(afterImport.meta.shortName, 'Nawaz Import Test');
+assert.equal(afterImport.meta.shortName, 'Xchool Import Test');
 assert.equal(afterImport.students.length, adminState.students.length);
 assert.equal(afterImport.staff.length, adminState.staff.length);
 log(

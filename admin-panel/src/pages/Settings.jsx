@@ -144,13 +144,13 @@ export default function Settings() {
   };
 
   const backupJson = () => {
-    downloadJson(`nawaz-school-backup-${todayISO()}.json`, data);
+    downloadJson(`xchool-school-backup-${todayISO()}.json`, data);
     notify('Full data backup downloaded.', 'success');
   };
 
   const exportStudents = () => {
     downloadCsv(
-      `nawaz-students-${todayISO()}.csv`,
+      `xchool-students-${todayISO()}.csv`,
       ['student_id', 'roll_number', 'name', 'class', 'guardian', 'phone', 'attendance', 'average'],
       data.students.map((student) => {
         const sessions = data.attendanceSessions.filter((session) =>

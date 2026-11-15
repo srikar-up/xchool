@@ -163,7 +163,7 @@ export default function Attendance() {
         });
     });
     downloadCsv(
-      `nawaz-attendance-${date}.csv`,
+      `xchool-attendance-${date}.csv`,
       ['Class', 'Roll', 'Student', 'Status', 'Remarks'],
       rows
     );

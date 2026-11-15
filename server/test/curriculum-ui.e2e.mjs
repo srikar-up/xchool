@@ -29,7 +29,7 @@ const CHROME = path.join(
   'chrome.exe'
 );
 
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nawaz-curriculum-ui-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'xchool-curriculum-ui-'));
 const children = [];
 
 function start(command, args, options = {}) {
@@ -137,7 +137,7 @@ try {
   await page.fill('input[type="password"]', 'admin123');
   await page.click('button[type="submit"]');
   await page.waitForFunction(
-    () => Boolean(window.localStorage.getItem('nawaz.admin.session.v1')),
+    () => Boolean(window.localStorage.getItem('xchool.admin.session.v1')),
     null,
     { timeout: 45000 }
   );

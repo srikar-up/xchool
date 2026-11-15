@@ -22,7 +22,7 @@ const API_KEY = fs
   .find((line) => line.startsWith('FIREBASE_API_KEY='))
   ?.slice('FIREBASE_API_KEY='.length);
 
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nawaz-attendance-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'xchool-attendance-'));
 
 const child = spawn(process.execPath, ['src/index.js'], {
   cwd: SERVER_DIR,

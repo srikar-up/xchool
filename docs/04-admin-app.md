@@ -106,7 +106,7 @@ The SubAdmin restriction is only a sidebar hide + view guard; the underlying DB 
 ### 2.4 Master workbook action banner
 
 - Badge “MASTER WORKBOOK”.
-- Filename `nawaz_school_master_database.xlsx (All Collections)`.
+- Filename `xchool_master_database.xlsx (All Collections)`.
 - “Download Master (.xlsx)”:
   - Calls `AdminStateController.downloadMasterWorkbook()`.
   - Generates 14 sheets from the current in-memory DB via `ExcelMasterService.exportMasterWorkbook`.
@@ -187,7 +187,7 @@ File: `screens/multi_excel_center_screen.dart`.
 
 #### Hero banner
 
-- `nawaz_school_master_database.xlsx`, described as “14-tab”.
+- `xchool_master_database.xlsx`, described as “14-tab”.
 - “Upload Master (.xlsx)” and “Download Unified Workbook (.xlsx)”.
 - **SubAdmin sees only blueprints with index < 7** in the dataset strip; SuperAdmin sees all 14.
 

@@ -91,7 +91,7 @@ try {
   teacherPage.on('pageerror', (error) => teacherErrors.push(error.message));
   teacherPage.on('console', (message) => message.type() === 'error' && teacherErrors.push(message.text()));
 
-  await login(teacherPage, TEACHER_URL, 'teacher@nawazschool.edu', 'teacher123', 'nawaz.teacher.session.v1');
+  await login(teacherPage, TEACHER_URL, 'teacher@nawazschool.edu', 'teacher123', 'xchool.teacher.session.v1');
   await teacherPage.goto(`${TEACHER_URL}/tasks/exams/${openExam.id}`, { waitUntil: 'domcontentloaded' });
   await teacherPage.waitForSelector('.marks-filter-bar', { timeout: 40000 });
 
@@ -135,7 +135,7 @@ try {
   adminPage.on('pageerror', (error) => adminErrors.push(error.message));
   adminPage.on('console', (message) => message.type() === 'error' && adminErrors.push(message.text()));
 
-  await login(adminPage, ADMIN_URL, 'admin@nawazschool.edu', 'admin123', 'nawaz.admin.session.v1');
+  await login(adminPage, ADMIN_URL, 'admin@nawazschool.edu', 'admin123', 'xchool.admin.session.v1');
   await adminPage.goto(`${ADMIN_URL}/exams`, { waitUntil: 'domcontentloaded' });
   await adminPage.getByRole('button', { name: /result matrix/i }).click();
   await adminPage.waitForSelector('.result-filter-bar', { timeout: 40000 });

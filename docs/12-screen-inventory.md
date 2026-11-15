@@ -8,8 +8,8 @@
 
 | Entry | File | Role | Behaviour |
 | :--- | :--- | :--- | :--- |
-| `main()` | `lib/main.dart` | Both | Initializes Firebase (best-effort), runs `NawazSchoolTeacherApp`. |
-| `NawazSchoolTeacherApp` | `lib/main.dart` | Both | `MaterialApp`, light theme, `SplashScreen`. |
+| `main()` | `lib/main.dart` | Both | Initializes Firebase (best-effort), runs `XchoolTeacherApp`. |
+| `XchoolTeacherApp` | `lib/main.dart` | Both | `MaterialApp`, light theme, `SplashScreen`. |
 | `SplashScreen` | `lib/features/splash/presentation/splash_screen.dart` | Both | 1 s brand animation → `MainNavScreen`. |
 | `MainNavScreen` | `lib/features/navigation/presentation/main_nav_screen.dart` | Both | Chooses teacher shell or admin tree by `db.isAdmin`; handles login/loading gates. |
 | `AdminScreen` | `lib/features/admin/presentation/admin_screen.dart` | Admin | Main admin shell and 16-module switch. |

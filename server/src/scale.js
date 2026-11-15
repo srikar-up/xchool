@@ -61,7 +61,7 @@ export function buildScaleFixture({
   for (let index = 0; index < studentCount; index += 1) {
     const section = sections[index % sectionCount];
     const roll = pad(Math.floor(index / sectionCount) + 1, 2);
-    const id = `STU-SCALE-${pad(index + 1, 4)}`;
+    const id = `26${pad(index + 1, 4)}`;
     students.push({
       id,
       code: id,
@@ -80,8 +80,8 @@ export function buildScaleFixture({
   }
 
   const staff = Array.from({ length: staffCount }, (_, index) => ({
-    id: `STF-${pad(index + 1, 3)}`,
-    code: `STF-${pad(index + 1, 3)}`,
+    id: `9${pad(index + 1, 5)}`,
+    code: `9${pad(index + 1, 5)}`,
     name: `Teacher ${pad(index + 1, 3)}`,
     email: `teacher${index + 1}@example.edu`,
     phone: `0301-${pad(index, 7)}`,
@@ -244,7 +244,7 @@ export function buildScaleFixture({
     actorName: staff[0].name,
     action: 'Updated student record',
     entity: 'Student',
-    entityId: `STU-SCALE-${pad(index + 1, 4)}`,
+    entityId: `26${pad(index + 1, 4)}`,
     detail: 'Load-test activity row',
     createdAt: isoDay(index % schoolDays),
   }));

@@ -486,7 +486,7 @@ Only a `print` statement. No FCM token registration, no server key, no delivery.
 - Desktop/mobile IO: `getDownloadsDirectory()` if available, else documents directory.
 - UI copy claims `C:\SchoolManagement\Exports\...`; the exporter does not create that exact path unless the downloads directory is that path.
 - File names:
-  - `nawaz_school_master_database.xlsx`
+  - `xchool_master_database.xlsx`
   - `students_master.csv`
   - `marks_master.csv`
   - `timetable_master.csv`

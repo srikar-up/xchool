@@ -1,5 +1,5 @@
-/* Nawaz School admin PWA service worker. */
-const CACHE_NAME = 'nawaz-admin-shell-v1';
+/* Xchool admin PWA service worker. */
+const CACHE_NAME = 'xchool-admin-shell-v1';
 const scope = self.registration.scope;
 const shellUrl = new URL('./', scope).href;
 const indexPath = new URL('index.html', scope).href;

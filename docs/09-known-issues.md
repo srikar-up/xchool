@@ -194,8 +194,8 @@ The edited controllers are never applied to `db.students`.
 
 ### KI-16 · S1 · The checked-in workbooks do not match the code
 
-- `nawaz school (1).xlsx` → 8 sheets.
-- `nawaz_school_master_database.xlsx` → 9 sheets.
+- `xchool (1).xlsx` → 8 sheets.
+- `xchool_master_database.xlsx` → 9 sheets.
 - Code expects 14.
 
 **Fix:** version the template; support legacy import with explicit mapping; ship the canonical template.

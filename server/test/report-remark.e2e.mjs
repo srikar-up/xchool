@@ -17,7 +17,7 @@ const API_KEY = fs
   .split(/\r?\n/)
   .find((line) => line.startsWith('FIREBASE_API_KEY='))
   ?.slice('FIREBASE_API_KEY='.length);
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nawaz-remarks-'));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'xchool-remarks-'));
 const children = [];
 
 const ACCOUNTS = {

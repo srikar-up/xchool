@@ -12,7 +12,7 @@ const PROBE = path.join(__dirname, 'helpers', 'boot-probe.mjs');
 
 // Isolated namespace so tests never touch the real `school` data.
 const ROOT = `school_test_${Date.now()}_${process.pid}`;
-const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nawaz-dbtest-'));
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xchool-dbtest-'));
 
 process.env.FIRESTORE_ROOT = ROOT;
 process.env.DATA_BACKEND = 'firestore';

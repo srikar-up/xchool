@@ -91,7 +91,7 @@ File: `lib/shared/widgets/app_header.dart`
 
 **Purpose:** brand moment and transition.
 
-- Displays `logo.jpeg` in a white circle, “NAWAZ SCHOOL”, “Teacher Mobile Workspace”, and “Verified Faculty Portal”.
+- Displays `logo.jpeg` in a white circle, “XCHOOL”, “Teacher Mobile Workspace”, and “Verified Faculty Portal”.
 - 800 ms scale/fade animation; 1 s timer; fade-replaces to `MainNavScreen(startWithSkeleton: true)`.
 - No auth check, no data loading, no error state.
 
@@ -356,7 +356,7 @@ No scheduled job is required; the status is computed on read.
 
 - Student selector strip (current class).
 - Report card:
-  - School header “NAWAZ SCHOOL SYSTEM”; class.
+  - School header “XCHOOL”; class.
   - Attendance ring (`student.attendanceRate * 100`).
   - Student name, roll, parent phone.
   - PASSING / NEEDS REVIEW badge based on `isAtRisk`.

@@ -37,7 +37,7 @@ try {
   await page.fill('input[type="password"]', 'admin123');
   await page.click('button[type="submit"]');
   await page.waitForFunction(
-    () => Boolean(window.localStorage.getItem('nawaz.admin.session.v1')),
+    () => Boolean(window.localStorage.getItem('xchool.admin.session.v1')),
     null,
     { timeout: 45000 }
   );
@@ -49,7 +49,7 @@ try {
   const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
   await exportButton.click();
   const download = await downloadPromise;
-  const tempFile = path.join(process.env.TEMP, `nawaz-export-${Date.now()}.zip`);
+  const tempFile = path.join(process.env.TEMP, `xchool-export-${Date.now()}.zip`);
   await download.saveAs(tempFile);
 
   const zip = await JSZip.loadAsync(fs.readFileSync(tempFile));

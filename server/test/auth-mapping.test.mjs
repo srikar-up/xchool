@@ -24,6 +24,21 @@ test('uid wins over a different email', () => {
   assert.equal(resolveStaff(db, { uid: 'STF-001', email: 'teacher@nawazschool.edu' }).id, 'STF-001');
 });
 
+test('numeric ids still resolve tokens issued with the old uid', () => {
+  const migrated = {
+    staff: [
+      {
+        id: '900002',
+        legacyIds: ['STF-002'],
+        email: 'teacher@nawazschool.edu',
+        isActive: true,
+      },
+    ],
+  };
+  assert.equal(resolveStaff(migrated, { uid: 'STF-002' }).id, '900002');
+  assert.equal(resolveStaff(migrated, { uid: '900002' }).id, '900002');
+});
+
 test('google accounts resolve by verified email', () => {
   const actor = resolveStaff(db, {
     uid: 'google-uid-123',

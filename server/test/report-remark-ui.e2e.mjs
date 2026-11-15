@@ -69,7 +69,7 @@ try {
   await page.fill('input[type="password"]', 'teacher123');
   await page.click('button[type="submit"]');
   await page.waitForFunction(
-    () => Boolean(localStorage.getItem('nawaz.teacher.session.v1')),
+    () => Boolean(localStorage.getItem('xchool.teacher.session.v1')),
     null,
     { timeout: 45000 }
   );

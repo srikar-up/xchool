@@ -16,7 +16,7 @@
 | **Grade** | The academic level, e.g. `10` or `Grade 10`. |
 | **Homeroom** | The base classroom/teacher relationship. |
 | **Incharge** | See attendance incharge. |
-| **Master workbook** | The 14-sheet `nawaz_school_master_database.xlsx` used for bulk import/export. |
+| **Master workbook** | The 14-sheet `xchool_master_database.xlsx` used for bulk import/export. |
 | **Marks ledger** | The list/grid of test records and scores. |
 | **Mid-term / End-term** | Formal institutional exams mandated by the principal. |
 | **PTM** | Parent–Teacher Meeting (not implemented; appears in some product copy). |

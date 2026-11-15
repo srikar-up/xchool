@@ -12,8 +12,8 @@ import { applyServerChange, hasPatch } from '../lib/statePatch';
 import Toast from '../components/Toast';
 
 const AppDataContext = createContext(null);
-const SESSION_KEY = 'nawaz.teacher.session.v1';
-const CACHE_KEY = 'nawaz.teacher.state.v1';
+const SESSION_KEY = 'xchool.teacher.session.v1';
+const CACHE_KEY = 'xchool.teacher.state.v1';
 const DYNAMIC_COLLECTIONS = [
   'students',
   'attendanceSessions',

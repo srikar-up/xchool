@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test, { after, before, describe } from 'node:test';
 
-const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'nawaz-changes-'));
+const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'xchool-changes-'));
 process.env.DATA_BACKEND = 'json';
 process.env.DATA_DIR = DATA_DIR;
 process.env.DISABLE_FILE_CACHE = 'false';

@@ -10,7 +10,7 @@ export default function BrandMark({ compact = false, subtitle = 'Admin console',
       </span>
       {!compact && (
         <span className="brand-text">
-          <strong>Nawaz School</strong>
+          <strong>Xchool</strong>
           <small>{subtitle}</small>
         </span>
       )}

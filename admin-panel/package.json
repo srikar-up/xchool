@@ -1,9 +1,9 @@
 {
-  "name": "nawaz-admin-panel",
+  "name": "xchool-admin",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Nawaz School admin command center — desktop-first React PWA",
+  "description": "Xchool admin command center — desktop-first React PWA",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

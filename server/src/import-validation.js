@@ -1,5 +1,6 @@
 import { SCHEMA_VERSION } from './seed.js';
 import { normalizeChapters, normalizeGrade } from './curriculum.js';
+import { isStaffId, isStudentId } from './identity.js';
 
 export const IMPORT_COLLECTIONS = [
   { key: 'meta', kind: 'object', primaryKey: null },
@@ -320,6 +321,22 @@ export function validateImportedData(data, { actorId } = {}) {
         push(def.key, index + 1, def.primaryKey, `Duplicate ${def.primaryKey} "${id}".`);
       } else {
         map.set(String(id), row);
+      }
+      if (def.key === 'staff' && !empty(id) && !isStaffId(id)) {
+        push(
+          def.key,
+          index + 1,
+          def.primaryKey,
+          `Staff IDs are six digits starting with 9, for example 900001 (got "${id}").`
+        );
+      }
+      if (def.key === 'students' && !empty(id) && !isStudentId(id)) {
+        push(
+          def.key,
+          index + 1,
+          def.primaryKey,
+          `Student IDs are six digits: the admission year plus a serial, for example 260001 (got "${id}").`
+        );
       }
       (def.required || []).forEach((field) => {
         if (field === def.primaryKey) return;

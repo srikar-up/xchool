@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "nawaz-school-admin",
+  "name": "xchool-admin",
   "compatibility_date": "2026-08-04",
   "assets": {
     "directory": "./dist",

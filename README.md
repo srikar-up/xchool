@@ -1,4 +1,4 @@
-# Nawaz School RMS — React PWA prototype
+# Xchool RMS — React PWA prototype
 
 A working replacement prototype for the failed Flutter app, built as **two separate web applications** that share one temporary Node/JSON data service:
 
@@ -191,6 +191,28 @@ The app clients read the dataset through `GET /api/bootstrap` plus the dynamic
 slices they need, listen to `/api/events`, and apply the small patches those
 events carry. The current state is also stored in `localStorage` for offline
 preview.
+
+### School identity numbers
+
+Every person is identified by a six-digit number:
+
+| Person | Format | Example |
+| --- | --- | --- |
+| Student | `YY` + 4-digit serial within the admission year | `260001` (2026 intake) |
+| Staff | `9` + 5-digit serial | `900001` |
+
+- Student prefixes `00`–`89` are available; `90`–`99` is reserved for staff, so
+  the two ranges can never collide.
+- Each intake year supports 9,999 students. The year stays readable on the card,
+  which keeps the scheme useful for a decade or more.
+- `server/src/identity.js` allocates the next number and performs the one-time
+  migration. It rewrites every reference (attendance entries, marks, assigned
+  teachers, class incharges, report remarks, audit rows) and keeps the previous
+  value in `legacyIds`.
+- CSV bundles exported before the migration are upgraded on import.
+- Existing Firebase password accounts keep their old uid (`STF-002`). The API
+  resolves it through `legacyIds`, so nobody has to reset a password. New
+  accounts are created with the numeric uid.
 
 ### Scaling: per-record storage and delta sync
 
@@ -589,8 +611,10 @@ Serve both PWAs from the API server for a production preview:
 
 ### Authentication
 
-Firebase UIDs equal staff ids (`STF-001`), so a verified token maps directly
-to a staff record. Create or refresh the demo accounts:
+Firebase UIDs equal staff ids (`900001`), so a verified token maps directly to a
+staff record. Accounts created before the numeric-id migration keep their old
+uid (`STF-001`); `staff.legacyIds` resolves those too. Create or refresh the demo
+accounts:
 
 ```
 npm --workspace server run create:users
@@ -614,8 +638,8 @@ Both login screens offer **Continue with Google** next to the password form.
 - Required in the Firebase console, once per origin:
   - **Authentication → Sign-in method → Google** enabled.
   - **Authentication → Settings → Authorized domains**: add
-    `nawaz-school-teacher.srikarsensai.workers.dev` and
-    `nawaz-school-admin.srikarsensai.workers.dev`.
+    `xchool-teacher.srikarsensai.workers.dev` and
+    `xchool-admin.srikarsensai.workers.dev`.
 
 No Google client secret exists in either app; the popup is handled entirely by
 Firebase Auth, and the API still sees only an ID token.
@@ -743,9 +767,9 @@ Three independent Workers, three separate origins:
 
 | App | Worker | URL |
 | --- | --- | --- |
-| Teacher PWA | `nawaz-school-teacher` | https://nawaz-school-teacher.srikarsensai.workers.dev |
-| Admin panel | `nawaz-school-admin` | https://nawaz-school-admin.srikarsensai.workers.dev |
-| API | `nawaz-school-api` | https://nawaz-school-api.srikarsensai.workers.dev |
+| Teacher PWA | `xchool-teacher` | https://xchool-teacher.srikarsensai.workers.dev |
+| Admin panel | `xchool-admin` | https://xchool-admin.srikarsensai.workers.dev |
+| API | `xchool-api` | https://xchool-api.srikarsensai.workers.dev |
 
 A custom domain can replace these later with `routes`/`custom_domains` in each
 `wrangler.jsonc`; no application code depends on the `workers.dev` names.
@@ -753,9 +777,9 @@ A custom domain can replace these later with `routes`/`custom_domains` in each
 ### Build and deploy
 
 ```bash
-export VITE_API_URL=https://nawaz-school-api.srikarsensai.workers.dev
-export VITE_TEACHER_URL=https://nawaz-school-teacher.srikarsensai.workers.dev
-export VITE_ADMIN_URL=https://nawaz-school-admin.srikarsensai.workers.dev
+export VITE_API_URL=https://xchool-api.srikarsensai.workers.dev
+export VITE_TEACHER_URL=https://xchool-teacher.srikarsensai.workers.dev
+export VITE_ADMIN_URL=https://xchool-admin.srikarsensai.workers.dev
 
 npm run build
 npm run deploy:api        # wrangler deploy --config server/wrangler.jsonc

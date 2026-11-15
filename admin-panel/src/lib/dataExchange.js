@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 
-export const CSV_FORMAT = 'nawaz-school-rms-csv';
+export const CSV_FORMAT = 'xchool-csv';
 export const CSV_FORMAT_VERSION = 1;
 
 export const DATA_COLLECTIONS = [
@@ -1302,7 +1302,7 @@ export async function buildExportBundle(data) {
   zip.file(
     'README.txt',
     [
-      'Nawaz School RMS — CSV data bundle',
+      'Xchool RMS — CSV data bundle',
       `Exported: ${exportedAt}`,
       `School: ${manifest.schoolName} (${manifest.academicYear})`,
       '',
@@ -1321,7 +1321,7 @@ export async function buildExportBundle(data) {
   return {
     blob,
     manifest,
-    fileName: `nawaz-school-data-${new Date().toISOString().slice(0, 10)}.zip`,
+    fileName: `xchool-data-${new Date().toISOString().slice(0, 10)}.zip`,
   };
 }
 
@@ -1356,7 +1356,7 @@ export function downloadSchema(data) {
   };
   downloadBlob(
     new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' }),
-    'nawaz-school-schema.json'
+    'xchool-school-schema.json'
   );
 }
 
@@ -1372,7 +1372,7 @@ export function downloadImportErrors(errors) {
   );
   downloadBlob(
     new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
-    `nawaz-import-errors-${new Date().toISOString().slice(0, 10)}.csv`
+    `xchool-import-errors-${new Date().toISOString().slice(0, 10)}.csv`
   );
 }
 

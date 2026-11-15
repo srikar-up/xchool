@@ -36,7 +36,7 @@ try {
   await page.fill('input[type="password"]', 'teacher123');
   await page.click('button[type="submit"]');
   await page.waitForFunction(
-    () => Boolean(window.localStorage.getItem('nawaz.teacher.session.v1')),
+    () => Boolean(window.localStorage.getItem('xchool.teacher.session.v1')),
     null,
     { timeout: 45000 }
   );

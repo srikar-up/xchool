@@ -48,11 +48,11 @@ export default function More() {
 
   const handleInstall = async () => {
     if (!canInstall) {
-      notify('Use your browser menu → “Install app” to add Nawaz Teacher to this device.', 'info');
+      notify('Use your browser menu → “Install app” to add Xchool Teacher to this device.', 'info');
       return;
     }
     const accepted = await install();
-    notify(accepted ? 'Nawaz Teacher installed on this device.' : 'Installation dismissed.', accepted ? 'success' : 'info');
+    notify(accepted ? 'Xchool Teacher installed on this device.' : 'Installation dismissed.', accepted ? 'success' : 'info');
   };
 
   return (
@@ -217,7 +217,7 @@ export default function More() {
             <ClipboardList size={20} />
           </span>
           <div>
-            <strong>Nawaz Teacher</strong>
+            <strong>Xchool Teacher</strong>
             <span>Prototype 1.0 · local school cache</span>
           </div>
         </div>

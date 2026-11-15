@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "nawaz-school-api",
+  "name": "xchool-api",
   "main": "./src/worker.js",
   "compatibility_date": "2026-08-04",
   "compatibility_flags": ["nodejs_compat"],

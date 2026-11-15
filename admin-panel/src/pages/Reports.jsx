@@ -136,7 +136,7 @@ export default function Reports() {
       ];
     });
     downloadCsv(
-      `nawaz-school-summary-${today}.csv`,
+      `xchool-summary-${today}.csv`,
       [
         'class_id',
         'class_name',

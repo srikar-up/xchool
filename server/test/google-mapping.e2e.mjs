@@ -9,7 +9,7 @@
  */
 import { adminAuth } from '../src/firebase.js';
 
-const API = process.env.API_URL || 'https://nawaz-school-api.srikarsensai.workers.dev';
+const API = process.env.API_URL || 'https://xchool-api.srikarsensai.workers.dev';
 const API_KEY =
   process.env.FIREBASE_API_KEY ||
   (await import('node:fs'))

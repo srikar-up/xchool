@@ -85,6 +85,9 @@ export default function Students() {
             !text ||
             student.name.toLowerCase().includes(text) ||
             student.code.toLowerCase().includes(text) ||
+            (student.legacyIds || []).some((id) =>
+              String(id).toLowerCase().includes(text)
+            ) ||
             student.rollNumber.includes(text) ||
             (student.parentPhone || '').includes(text);
           const matchesClass =
@@ -198,6 +201,7 @@ export default function Students() {
       student.rollNumber,
       student.name,
       student.classIdSection,
+      student.admissionDate || '',
       student.guardianName || '',
       student.parentPhone || '',
       studentAttendance(data, student.id).rate,
@@ -205,12 +209,13 @@ export default function Students() {
       isStudentAtRisk(data, student.id) ? 'At risk' : 'On track',
     ]);
     downloadCsv(
-      'nawaz-students.csv',
+      'xchool-students.csv',
       [
         'student_id',
         'roll_number',
         'name',
         'class_id_section',
+        'admission_date',
         'guardian_name',
         'parent_phone',
         'attendance_rate',
@@ -663,8 +668,9 @@ export default function Students() {
               <p className="muted small">All rows were imported without errors.</p>
             )}
             <p className="import-hint">
-              Accepted headers: student_id, roll_number, name, class_id_section, guardian_name,
-              parent_phone.
+              Accepted headers: student_id, roll_number, name, class_id_section, admission_date,
+              guardian_name, parent_phone. Student IDs are six digits, for example 260001; leave
+              the column blank to assign the next number automatically.
             </p>
           </div>
         ) : null}
@@ -752,6 +758,10 @@ function StudentDetail({ data, student, onEdit }) {
             <Mail size={14} /> Date of birth
           </span>
           <strong>{student.dateOfBirth ? formatDate(student.dateOfBirth) : 'Not recorded'}</strong>
+        </div>
+        <div>
+          <span>School ID</span>
+          <strong>{student.code}</strong>
         </div>
         <div>
           <span>Admission date</span>

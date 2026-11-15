@@ -9,7 +9,7 @@ describe('import validation', () => {
     db.subjects[0].assignedStaffId = '';
     db.subjects[0].assignedTeacherName = 'Unassigned';
     normalizeImportedData(db);
-    const errors = validateImportedData(db, { actorId: 'STF-001' });
+    const errors = validateImportedData(db, { actorId: db.staff[0].id });
     assert.deepEqual(
       errors.filter((error) => error.collection === 'subjects'),
       []
@@ -23,7 +23,7 @@ describe('import validation', () => {
     const subject = db.subjects.find((entry) => entry.id === exam.subjectId);
     if (subject) subject.assignedStaffId = '';
     normalizeImportedData(db);
-    const errors = validateImportedData(db, { actorId: 'STF-001' });
+    const errors = validateImportedData(db, { actorId: db.staff[0].id });
     assert.deepEqual(
       errors.filter((error) => error.collection === 'exams'),
       []
@@ -34,7 +34,7 @@ describe('import validation', () => {
     const db = buildSeed();
     db.subjects[0].assignedStaffId = 'STF-NOT-REAL';
     normalizeImportedData(db);
-    const errors = validateImportedData(db, { actorId: 'STF-001' });
+    const errors = validateImportedData(db, { actorId: db.staff[0].id });
     assert.ok(
       errors.some(
         (error) =>

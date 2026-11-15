@@ -55,7 +55,7 @@ export default function Login() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    document.title = 'Admin sign in · Nawaz School';
+    document.title = 'Admin sign in · Xchool';
   }, []);
 
   if (session) return <Navigate to="/overview" replace />;
@@ -114,11 +114,11 @@ export default function Login() {
             <span>
               <img
                 src={`${import.meta.env.BASE_URL}school-logo.png`}
-                alt="Nawaz School crest"
+                alt="Xchool crest"
               />
             </span>
             <div>
-              <strong>Nawaz School</strong>
+              <strong>Xchool</strong>
               <small>Admin command center</small>
             </div>
           </div>

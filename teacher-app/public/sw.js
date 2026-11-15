@@ -1,7 +1,7 @@
-/* Nawaz School teacher PWA service worker.
+/* Xchool teacher PWA service worker.
    Keeps the app shell available and caches same-origin static assets.
    API calls always go to the network; the app keeps its own last-known cache. */
-const CACHE_NAME = 'nawaz-teacher-shell-v1';
+const CACHE_NAME = 'xchool-teacher-shell-v1';
 const scope = self.registration.scope;
 const shellUrl = new URL('./', scope).href;
 const indexPath = new URL('index.html', scope).href;

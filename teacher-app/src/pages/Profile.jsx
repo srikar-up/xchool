@@ -29,7 +29,7 @@ import {
   relativeTime,
 } from '../lib/format';
 
-const PREFS_KEY = 'nawaz.teacher.preferences.v1';
+const PREFS_KEY = 'xchool.teacher.preferences.v1';
 
 export default function Profile() {
   const { data, user, logout, live, offline, lastSyncedAt, refresh } = useAppData();
@@ -245,7 +245,7 @@ export default function Profile() {
       </button>
 
       <p className="profile-footer">
-        <UserRound size={13} /> Nawaz Teacher · Prototype 1.0 · Data resets from the admin settings.
+        <UserRound size={13} /> Xchool Teacher · Prototype 1.0 · Data resets from the admin settings.
       </p>
 
       <Sheet

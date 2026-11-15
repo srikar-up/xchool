@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSeed, SCHEMA_VERSION } from './seed.js';
 import { buildCurriculaFromSubjects } from './curriculum.js';
+import { migrateIdentity } from './identity.js';
 import { isoDaysAgo, pruneAttendanceRecords } from './maintenance.js';
 import {
   COLLECTION_KEYS,
@@ -392,9 +393,18 @@ export function initStore({ force = false } = {}) {
     db = buildSeed();
     persist();
     console.log(`[data] Seeded ${db.students.length} students, ${db.staff.length} staff.`);
-  } else if (ensureCurricula(db)) {
-    persist();
-    console.log(`[data] Added ${db.curricula.length} grade curricula.`);
+  } else {
+    if (ensureCurricula(db)) {
+      persist();
+      console.log(`[data] Added ${db.curricula.length} grade curricula.`);
+    }
+    const identity = migrateIdentity(db);
+    if (identity.changed) {
+      persist();
+      console.log(
+        `[data] Renumbered ${identity.students} student(s) and ${identity.staff} staff member(s).`
+      );
+    }
   }
   const pruned = applyAttendanceRetention(db);
   if (pruned.length) {
@@ -423,6 +433,7 @@ export async function initStoreAsync({ force = false } = {}) {
       db = remote;
       lastSynced = structuredClone(db);
       const curriculaChanged = ensureCurricula(db);
+      const identity = migrateIdentity(db);
       const needsLayoutMigration = Number(db.meta?.layoutVersion || 1) < LAYOUT_VERSION;
 
       if (needsLayoutMigration) {
@@ -434,6 +445,18 @@ export async function initStoreAsync({ force = false } = {}) {
         lastSynced = structuredClone(db);
         lastSyncAt = new Date().toISOString();
         lastSyncResult = { migrated: true };
+      } else if (identity.changed) {
+        // A full diff is required: every student/staff document gets a new
+        // key, so the old documents have to be deleted as well as written.
+        const changes = emptyChanges();
+        changes.full = true;
+        await saveDbToFirestore(db, lastSynced, changes);
+        lastSynced = structuredClone(db);
+        lastSyncAt = new Date().toISOString();
+        lastSyncResult = { migrated: true, identity: true };
+        console.log(
+          `[data] Renumbered ${identity.students} student(s) and ${identity.staff} staff member(s) in Firestore.`
+        );
       } else if (curriculaChanged) {
         const changes = emptyChanges();
         changes.collections.add('curricula');

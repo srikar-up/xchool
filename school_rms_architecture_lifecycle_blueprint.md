@@ -1,12 +1,12 @@
-# Nawaz School RMS: Future-Proof Architecture & Lifecycle Blueprint (`v2.0`)
+# Xchool RMS: Future-Proof Architecture & Lifecycle Blueprint (`v2.0`)
 
-**Document Purpose:** Complete architectural overhaul of the `nawaz-school-rms-csv` data layer to support multi-year academic cycles, mid-year admissions, section shuffling, staff turnover, and strict historical auditability.
+**Document Purpose:** Complete architectural overhaul of the `xchool-csv` data layer to support multi-year academic cycles, mid-year admissions, section shuffling, staff turnover, and strict historical auditability.
 
 ---
 
 ## 1. Executive Summary: Why V1 Will Break in Production
 
-Your current V1 schema (`nawaz-school-schema.json`) works well as a **single-snapshot prototype**, but it has four structural vulnerabilities that will break when used in a real school over multiple months or years:
+Your current V1 schema (`xchool-school-schema.json`) works well as a **single-snapshot prototype**, but it has four structural vulnerabilities that will break when used in a real school over multiple months or years:
 
 1. **The "Time-Blindness" Problem:** In V1, `students.csv` directly holds `classIdSection` and `rollNumber`. When a student moves from Grade 9 to Grade 10 next year, overwriting `classIdSection` destroys the fact that they were ever in Grade 9. If you print their 9th-grade report card next year, it will mistakenly say "Grade 10".
 2. **The Nested CSV Anti-Pattern:** `attendanceSessions.csv` uses `"nestedEntries": true` (packing an array of student statuses inside a single CSV column). In CSV systems, this makes querying a single student's yearly attendance slow, breaks standard spreadsheet editors, and risks corrupting an entire class's attendance if one character is malformed.
@@ -160,7 +160,7 @@ Tracks every class placement a student has ever held.
 
 ## 5. CSV Storage & Concurrency Mechanics (Technical Guardrails)
 
-Since your architecture uses CSV files (`nawaz-school-rms-csv`), you must protect against file-system corruption and race conditions:
+Since your architecture uses CSV files (`xchool-csv`), you must protect against file-system corruption and race conditions:
 
 ### Mistake 1: Concurrent File Overwrites (Two Teachers Saving Attendance at 8:30 AM)
 * **Problem:** Teacher A (`10-A`) and Teacher B (`10-B`) submit attendance at `08:30:02`. Both read `attendanceRecords.csv` into memory, append their 40 rows, and write the file back. Whoever writes 5 milliseconds later overwrites the other teacher's attendance!

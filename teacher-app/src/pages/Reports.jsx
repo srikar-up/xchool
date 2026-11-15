@@ -102,7 +102,7 @@ export default function Reports() {
     };
 
     const message = [
-      `Nawaz School System — Progress Update`,
+      `Xchool — Progress Update`,
       `Student: ${selected.name} (Roll ${selected.rollNumber})`,
       `Class: ${selectedClass?.displayName || selected.classIdSection}`,
       `Attendance: ${attendance.rate}% (${attendance.present}/${attendance.total} sessions)`,
@@ -135,7 +135,7 @@ export default function Reports() {
                 <BookOpen size={22} />
               </span>
               <div>
-                <strong>NAWAZ SCHOOL SYSTEM</strong>
+                <strong>XCHOOL</strong>
                 <span>Student progress & attendance slip</span>
               </div>
               <Badge tone={atRisk ? 'danger' : 'success'}>
@@ -148,7 +148,7 @@ export default function Reports() {
               <div>
                 <h2>{selected.name}</h2>
                 <p>
-                  {selectedClass?.displayName} · Roll {selected.rollNumber} · {selected.code}
+                  {selectedClass?.displayName} · Roll {selected.rollNumber} · ID {selected.code}
                 </p>
                 <span>{selected.guardianName} · {selected.parentPhone}</span>
               </div>
@@ -316,7 +316,7 @@ export default function Reports() {
             </div>
 
             <div className="report-foot">
-              <span>Generated {formatDate(new Date())} · Nawaz School System</span>
+              <span>Generated {formatDate(new Date())} · Xchool</span>
               <span>{selectedClass?.classTeacherName} · Class teacher</span>
             </div>
           </section>

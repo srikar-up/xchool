@@ -85,7 +85,7 @@ const uploadResult = await page.evaluate(async () => {
   const file = await toWebp(new File([blob], 'avatar.png', { type: 'image/png' }));
 
   try {
-    const saved = await uploadProfilePhoto(file, { kind: 'staff', id: 'STF-002' });
+    const saved = await uploadProfilePhoto(file, { kind: 'staff', id: '900002' });
     return { ok: true, photo: saved.photo };
   } catch (error) {
     return { ok: false, error: String(error.message || error) };
