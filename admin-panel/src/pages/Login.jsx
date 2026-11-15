@@ -19,14 +19,14 @@ import Avatar from '../components/Avatar';
 const DEMO_ACCOUNTS = [
   {
     label: 'Principal · SuperAdmin',
-    name: 'Dr. Tarun Mehta',
+    name: 'Dr. Rakesh Mehra',
     email: 'admin@nawazschool.edu',
     password: 'admin123',
     color: '#4338CA',
   },
   {
     label: 'Operations · SubAdmin',
-    name: 'Mr. Usman Ali',
+    name: 'Mr. Imran Qureshi',
     email: 'subadmin@nawazschool.edu',
     password: 'subadmin123',
     color: '#0D9488',
@@ -295,8 +295,8 @@ export default function Login() {
           </div>
 
           <p className="admin-login-note">
-            Prototype credentials are shown for the local demo. After Firebase is connected, sign-in
-            will use Firebase Authentication and role claims.
+            These demo accounts sign in through Firebase Authentication. Change their passwords in
+            the Firebase console before sharing the deployment.
           </p>
 
           <a

@@ -9,9 +9,9 @@
  */
 import { buildSeed } from './seed.js';
 import {
-  CONFIG_COLLECTIONS,
+  COLLECTION_KEYS,
+  LAYOUT_VERSION,
   MAX_DOCUMENT_BYTES,
-  RECORD_COLLECTIONS,
 } from './layout.js';
 
 function bytes(value) {
@@ -253,7 +253,7 @@ export function buildScaleFixture({
     ...seed,
     meta: {
       ...seed.meta,
-      layoutVersion: 2,
+      layoutVersion: LAYOUT_VERSION,
       revision: 1,
       schoolName: 'Scale Test School',
     },
@@ -273,29 +273,31 @@ export function buildScaleFixture({
   return db;
 }
 
-/** Per-collection sizes under the layout v2 write model. */
+/** Per-record sizes under the layout v3 write model. */
 export function measureScale(db) {
   const collections = {};
 
-  for (const key of [...CONFIG_COLLECTIONS, ...RECORD_COLLECTIONS]) {
+  for (const key of COLLECTION_KEYS) {
     const rows = db[key] || [];
     const sizes = rows.map((row) => bytes(row));
     collections[key] = {
       rows: rows.length,
-      layout: RECORD_COLLECTIONS.includes(key) ? 'per-record' : 'single-document',
-      documentBytes: RECORD_COLLECTIONS.includes(key)
-        ? Math.max(0, ...sizes)
-        : bytes({ items: rows }),
+      layout: 'per-record',
+      documentBytes: Math.max(0, ...sizes),
+      totalBytes: bytes(rows),
       largestRecordBytes: Math.max(0, ...sizes),
     };
   }
 
-  const recordDocuments = RECORD_COLLECTIONS.reduce(
+  const recordDocuments = COLLECTION_KEYS.reduce(
     (sum, key) => sum + (db[key]?.length || 0),
     0
   );
-  const coldStartReads = recordDocuments + CONFIG_COLLECTIONS.length + 1;
-  const largestDocument = Math.max(...Object.values(collections).map((entry) => entry.documentBytes));
+  const metaFields = Object.keys(db.meta || {}).length;
+  const coldStartReads = recordDocuments + metaFields;
+  const largestDocument = Math.max(
+    ...Object.values(collections).map((entry) => entry.documentBytes)
+  );
 
   return {
     revision: db.meta?.revision,
@@ -304,7 +306,7 @@ export function measureScale(db) {
     sections: db.classes?.length || 0,
     collections,
     recordDocuments,
-    configDocuments: CONFIG_COLLECTIONS.length + 1,
+    metaFields,
     coldStartReads,
     largestDocument,
     overLimit: largestDocument > MAX_DOCUMENT_BYTES,

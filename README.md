@@ -628,6 +628,7 @@ npm start              # serve API + all three built PWAs on :4000
 npm run seed           # force-reseed the JSON demo database
 npm run import:d1      # copy a JSON/Firestore snapshot into D1
 npm run test:db        # D1 persistence test against a local Worker
+npm run test:stress    # HTTP load test against the deployed API
 npm run test:api       # shared-data smoke tests (server must be running)
 npm run test:ui        # Chrome route checks + screenshots (server must be running)
 npm run test:attendance       # attendance-mode rules (no servers needed)
@@ -986,6 +987,56 @@ through `wrangler dev`.
 
 Firestore is no longer used for school data. It remains the identity provider
 (Firebase Authentication) and the source for the one-time import.
+
+### Demo / stress-test dataset
+
+`xchool-db` holds a full Indian sample school prepared from
+`test db/nawaz-school-data-indian.zip`:
+
+- **533 students** in 15 sections (6-A … 10-C), 33–38 per section
+- **35 staff**, 25 of them teaching; every subject, timetable period, exam and
+  class incharge points at an active teacher
+- **357 exams**, **5,538 marks** (every student has 10–11 results)
+- **473 attendance registers** over 28 school days, through 14 Nov 2026
+- numeric IDs: students `YY####`, staff `9#####`
+
+Rebuild and import it:
+
+```powershell
+node server/scripts/prepare-demo-dataset.mjs --data <extracted>/data.json
+npm run import:d1 -- --data <extracted>/xchool-import-ready.json
+```
+
+`prepare-demo-dataset.mjs` rebrands the school as Xchool, renumbers every
+student and staff member, rewrites all references, and tops up attendance for
+the school days after the export.
+
+Sample student logins (provisioned through the admin API):
+
+| Email | Password | Class |
+| --- | --- | --- |
+| `170001@students.xchool.edu.in` | `Xchool@123` | 10-A |
+| `180006@students.xchool.edu.in` | `Xchool@123` | 9-A |
+| `190001@students.xchool.edu.in` | `Xchool@123` | 8-A |
+| `200001@students.xchool.edu.in` | `Xchool@123` | 7-A |
+| `210001@students.xchool.edu.in` | `Xchool@123` | 6-A |
+
+### Stress test
+
+`server/scripts/stress-api.mjs` signs in with Firebase and mixes public and
+authenticated reads:
+
+```powershell
+npm run test:stress -- --requests 120 --concurrency 12
+# npm on Windows strips unknown flags from `npm run --`; the direct form is:
+node server/scripts/stress-api.mjs --requests 120 --concurrency 12
+```
+
+It prints p50/p95/p99, throughput and failures per endpoint. The first requests
+that land on a new Worker isolate pay a cold start (the isolate reads the whole
+school from D1 and serialises `/api/bootstrap`), which can take around 10 s;
+warm requests settle around 200–400 ms. Keep runs modest on the free tiers
+(about 100k requests/day, 5M D1 rows read/day).
 
 ---
 

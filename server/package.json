@@ -40,7 +40,8 @@
     "create:users": "node --env-file-if-exists=.env scripts/create-auth-users.mjs",
     "test:google": "node --env-file-if-exists=.env test/google-mapping.e2e.mjs",
     "deploy": "wrangler deploy --config wrangler.jsonc",
-    "import:d1": "node scripts/import-firestore-to-d1.mjs"
+    "import:d1": "node scripts/import-firestore-to-d1.mjs",
+    "test:stress": "node scripts/stress-api.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

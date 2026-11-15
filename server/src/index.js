@@ -435,7 +435,7 @@ app.get('/api/diagnostics', requireActor, requireSuperAdmin, (req, res) => {
           rows: rows.length,
           bytes: bytes({ items: rows }),
           largestRecordBytes: largest,
-          layout: RECORD_COLLECTIONS.includes(key) ? 'per-record' : 'single-document',
+          layout: 'per-record',
         },
       ];
     })

@@ -46,10 +46,10 @@ console.log(
   `Scale model: ${report.students} students · ${report.staff} staff · ${report.sections} sections`
 );
 console.log(
-  `Documents: ${report.recordDocuments} record + ${report.configDocuments} config · cold start reads ${report.coldStartReads}`
+  `Rows: ${report.recordDocuments} records + ${report.metaFields} meta fields · cold start reads ${report.coldStartReads}`
 );
 console.log(
-  `Largest document: ${(report.largestDocument / 1024).toFixed(1)} KiB · total state ${(
+  `Largest row: ${(report.largestDocument / 1024).toFixed(1)} KiB · total state ${(
     report.totalStateBytes / 1024
   ).toFixed(1)} KiB`
 );
@@ -57,20 +57,20 @@ console.log(
   `Writes per register: ${report.writesPerAttendanceSubmission} · per class marks: ${report.writesPerMarksSubmission}`
 );
 console.log('');
-console.log('Collection'.padEnd(22), 'Rows'.padStart(7), 'Doc KiB'.padStart(10), 'Largest KiB'.padStart(12), 'Layout');
+console.log('Collection'.padEnd(22), 'Rows'.padStart(7), 'Total KiB'.padStart(10), 'Largest KiB'.padStart(12), 'Layout');
 for (const [key, entry] of Object.entries(report.collections)
-  .sort((a, b) => b[1].documentBytes - a[1].documentBytes)
+  .sort((a, b) => b[1].largestRecordBytes - a[1].largestRecordBytes)
   .slice(0, 15)) {
   console.log(
     key.padEnd(22),
     String(entry.rows).padStart(7),
-    (entry.documentBytes / 1024).toFixed(1).padStart(10),
+    (entry.totalBytes / 1024).toFixed(1).padStart(10),
     (entry.largestRecordBytes / 1024).toFixed(1).padStart(12),
     entry.layout
   );
 }
 console.log('');
-console.log(report.overLimit ? 'FAIL: a document crosses the safety limit.' : 'PASS: every document is under the safety limit.');
+console.log(report.overLimit ? 'FAIL: a row crosses the safety limit.' : 'PASS: every row is under the safety limit.');
 
 if (process.argv.includes('--write')) {
   if (!process.argv.includes('--yes')) {

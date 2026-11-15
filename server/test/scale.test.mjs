@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { describe } from 'node:test';
 import { buildScaleFixture, measureScale } from '../src/scale.js';
-import { MAX_DOCUMENT_BYTES, RECORD_COLLECTIONS } from '../src/layout.js';
+import { MAX_DOCUMENT_BYTES } from '../src/layout.js';
 
 const db = buildScaleFixture();
 const report = measureScale(db);
@@ -44,22 +44,21 @@ describe('1,000 students / 50 teachers scale model', () => {
     );
   });
 
-  test('per-record collections are the ones split', () => {
-    for (const key of RECORD_COLLECTIONS) {
+  test('every collection is split into per-record rows', () => {
+    for (const key of Object.keys(report.collections)) {
       assert.equal(report.collections[key].layout, 'per-record', `${key} should be split`);
     }
-    assert.equal(report.collections.timetable.layout, 'single-document');
   });
 
   test('a cold start stays inside a realistic daily read budget', () => {
     assert.ok(
       report.coldStartReads < 20_000,
-      `cold start would read ${report.coldStartReads} documents`
+      `cold start would read ${report.coldStartReads} rows`
     );
     assert.ok(report.recordDocuments > 10_000);
   });
 
-  test('a register submission writes a handful of documents', () => {
+  test('a register submission writes a handful of rows', () => {
     assert.equal(report.writesPerAttendanceSubmission, 3);
     assert.ok(report.writesPerMarksSubmission < 50);
   });

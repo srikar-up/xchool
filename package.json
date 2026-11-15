@@ -59,7 +59,8 @@
     "test:student:unit": "node --test server/test/student-portal.test.mjs",
     "test:load": "node server/scripts/load-test.mjs",
     "test:production": "node server/test/production.e2e.mjs",
-    "import:d1": "npm --workspace server run import:d1"
+    "import:d1": "npm --workspace server run import:d1",
+    "test:stress": "node server/scripts/stress-api.mjs"
   },
   "devDependencies": {
     "cf": "^0.15.0",

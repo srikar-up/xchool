@@ -20,6 +20,7 @@ const {
   refreshStoreAsync,
   trackRecord,
 } = await import('../src/store.js');
+const { LAYOUT_VERSION } = await import('../src/layout.js');
 
 before(() => {
   initStore({ force: true });
@@ -126,7 +127,7 @@ describe('mutation journal and delta patches', () => {
     assert.ok(bounds.size <= bounds.limit);
     const status = getSyncStatus();
     assert.equal(status.backend, 'local-json');
-    assert.equal(status.layoutVersion, 2);
+    assert.equal(status.layoutVersion, LAYOUT_VERSION);
     assert.equal(status.journal.size, bounds.size);
   });
 
