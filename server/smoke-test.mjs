@@ -263,7 +263,7 @@ const createdStudent = await api('/api/students', {
     name: 'Smoke Test Student',
     classIdSection: '10-B',
     rollNumber: '99',
-    parentPhone: '+92 300 0000000',
+    parentPhone: '+91 90000 00000',
   },
 });
 assert.equal(createdStudent.status, 201);

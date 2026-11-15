@@ -19,7 +19,7 @@ import Avatar from '../components/Avatar';
 const DEMO_ACCOUNTS = [
   {
     label: 'Principal · SuperAdmin',
-    name: 'Dr. Tariq Nawaz',
+    name: 'Dr. Tarun Mehta',
     email: 'admin@nawazschool.edu',
     password: 'admin123',
     color: '#4338CA',

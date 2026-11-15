@@ -629,7 +629,7 @@ export default function Students() {
               type="tel"
               value={form.parentPhone}
               onChange={(event) => setField('parentPhone', event.target.value)}
-              placeholder="+92 300 1234567"
+              placeholder="+91 90000 12345"
             />
           </label>
           <label className="admin-field">

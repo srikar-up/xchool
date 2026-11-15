@@ -72,7 +72,7 @@ export function buildScaleFixture({
       parentPhone: `0300-${pad(index, 7)}`,
       gender: index % 2 ? 'Female' : 'Male',
       dateOfBirth: '2012-04-12',
-      address: `House ${index + 1}, Model Town`,
+      address: `House ${index + 1}, MG Road`,
       admissionDate: '2026-04-01',
       status: 'Active',
       createdAt: '2026-04-01T08:00:00.000Z',

@@ -1,7 +1,7 @@
 # 03 — Teacher Mobile Workspace
 
 > **Target user:** classroom teacher on a phone.
-> **Demo identity:** Prof. Sarah Nawaz · `tch_sarah_01` · `s.nawaz@school.edu` · Science & Mathematics Dept.
+> **Demo identity:** Prof. Sarita Menon · `tch_sarah_01` · `s.nawaz@school.edu` · Science & Mathematics Dept.
 > **Entry point:** `lib/main.dart` → `SplashScreen` → `MainNavScreen`.
 > **Shell:** `lib/features/navigation/presentation/main_nav_screen.dart`.
 
@@ -435,7 +435,7 @@ All, Leave, Maintenance, Gear, Confidential. Count badges are computed from `db.
 **Sections**
 
 - Hero: initials “SN”, teacher name, department, meta chips (TCH-001, Grade 10 Head, 24 Periods/Wk).
-- Contact: email (from DB), phone (`+92 300 1234567` hardcoded), faculty room (hardcoded).
+- Contact: email (from DB), phone (`+91 90000 12345` hardcoded), faculty room (hardcoded).
 - Assigned classrooms: Class 10-A (Mathematics & Physics, homeroom), Class 9-A (General Physics & Biology) — hardcoded.
 - Preferences: FCM alerts and background offline sync switches — local state only, not persisted.
 - “Windows Admin Console” switch action.

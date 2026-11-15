@@ -59,9 +59,9 @@ The server seeds a new `server/data/db.json` on first start if the file is missi
 
 | App | Person | Email | Password |
 | :--- | :--- | :--- | :--- |
-| Admin | Dr. Tariq Nawaz (SuperAdmin) | `admin@nawazschool.edu` | `admin123` |
+| Admin | Dr. Tarun Mehta (SuperAdmin) | `admin@nawazschool.edu` | `admin123` |
 | Admin | Mr. Usman Ali (SubAdmin) | `subadmin@nawazschool.edu` | `subadmin123` |
-| Teacher | Prof. Sarah Nawaz | `teacher@nawazschool.edu` | `teacher123` |
+| Teacher | Prof. Sarita Menon | `teacher@nawazschool.edu` | `teacher123` |
 | Teacher | Dr. Imran Khan | `imran@nawazschool.edu` | `teacher123` |
 | Teacher | Ms. Ayesha Siddiqa | `ayesha@nawazschool.edu` | `teacher123` |
 | Teacher | Mr. Bilal Siddiqui | `bilal@nawazschool.edu` | `teacher123` |

@@ -501,7 +501,7 @@ export default function Staff() {
               type="tel"
               value={form.phone}
               onChange={(event) => setField('phone', event.target.value)}
-              placeholder="+92 300 1234567"
+              placeholder="+91 90000 12345"
             />
           </label>
           <label className="admin-field">

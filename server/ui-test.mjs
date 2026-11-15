@@ -56,9 +56,9 @@ async function shot(page, name) {
   watch(page, 'teacher');
 
   await page.goto(`${BASE}/teacher/login`, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /Continue as Prof\. Sarah Nawaz/i }).waitFor();
+  await page.getByRole('button', { name: /Continue as Prof\. Sarita Menon/i }).waitFor();
   await shot(page, 'teacher-login.png');
-  await page.getByRole('button', { name: /Continue as Prof\. Sarah Nawaz/i }).click();
+  await page.getByRole('button', { name: /Continue as Prof\. Sarita Menon/i }).click();
   await page.getByText('Attendance today', { exact: true }).waitFor({ timeout: 15000 });
   await page.waitForTimeout(600);
   assert.equal(new URL(page.url()).pathname.replace(/\/$/, ''), '/teacher');
@@ -146,9 +146,9 @@ async function shot(page, name) {
   watch(page, 'admin');
 
   await page.goto(`${BASE}/admin/login`, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /Dr\. Tariq Nawaz/i }).waitFor();
+  await page.getByRole('button', { name: /Dr\. Tarun Mehta/i }).waitFor();
   await shot(page, 'admin-login.png');
-  await page.getByRole('button', { name: /Dr\. Tariq Nawaz/i }).click();
+  await page.getByRole('button', { name: /Dr\. Tarun Mehta/i }).click();
   await page.getByText('School tools', { exact: true }).waitFor({ timeout: 15000 });
   await page.waitForTimeout(800);
   assert.equal(new URL(page.url()).pathname, '/admin/overview');
@@ -187,7 +187,7 @@ async function shot(page, name) {
   );
   await page.locator('.attendance-registry-class select').selectOption('10-A');
   await page.waitForTimeout(250);
-  await page.getByText('Ahmed Khan', { exact: false }).first().waitFor();
+  await page.getByText('Aarav Sharma', { exact: false }).first().waitFor();
   await shot(page, 'admin-attendance-registry-class.png');
   console.log('✓ Monthly attendance registry rendered student rows and class filtering');
 
@@ -252,7 +252,7 @@ async function shot(page, name) {
   await searchInput.waitFor();
   await searchInput.click();
   await searchInput.fill('Sarah');
-  await page.getByText('Prof. Sarah Nawaz', { exact: false }).first().waitFor();
+  await page.getByText('Prof. Sarita Menon', { exact: false }).first().waitFor();
   await page.waitForTimeout(300);
   await shot(page, 'admin-search.png');
   console.log('✓ Admin global search opened and returned results');

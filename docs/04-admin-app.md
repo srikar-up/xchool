@@ -1,7 +1,7 @@
 # 04 — Admin Command Center
 
 > **Target user:** principal / owner / academic head / operator.
-> **Demo identity:** Dr. Tariq Nawaz · `superadmin@school.com` · SuperAdmin.
+> **Demo identity:** Dr. Tarun Mehta · `superadmin@school.com` · SuperAdmin.
 > **Entry point:** runtime role switch from the teacher app → `AdminScreen`.
 > **Shell:** `lib/features/admin/presentation/admin_screen.dart`.
 
@@ -151,10 +151,10 @@ File: `admin_screen.dart` → `_buildBentoDashboard`.
 - Half-donut gauge is **hardcoded 67% completed / 20% in progress / 13% pending**.
 - “Weekly Institutional Target: +14 Topics / Week (On Schedule)” — static.
 - Velocity rows are **hardcoded**:
-  - Mathematics / Grade 10-A / Prof. Sarah Nawaz / 75% / +3 topics/wk / On Track
+  - Mathematics / Grade 10-A / Prof. Sarita Menon / 75% / +3 topics/wk / On Track
   - Physics / Grade 10-A / Dr. Imran Ali / 45% / 1 topic/wk / Behind Pace
   - General Science / Grade 9-A / Ms. Ayesha Malik / 82% / +4 topics/wk / Ahead
-  - Chemistry / Grade 10-A / Prof. Sarah Nawaz / 70% / +2 topics/wk / On Track
+  - Chemistry / Grade 10-A / Prof. Sarita Menon / 70% / +2 topics/wk / On Track
   - Computer Science / Grade 10-A / Mr. Bilal Siddiqui / 60% / +2 topics/wk / On Track
 - Note that these teacher names do not match the seeded staff (`Dr. Imran Khan`, `Ms. Ayesha Siddiqa`). The copy is cosmetic.
 

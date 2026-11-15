@@ -29,7 +29,7 @@ The original product notes describe a Flutter Windows admin app and a Flutter mo
 
 > “I have 40 seconds before the bell. Show me my class, let me mark who is absent, and let me get on with teaching.”
 
-The teacher experience is a pastel Aurora UI with a fixed app header, a bottom navigation bar, and a quick-action sheet. The main areas are Home, Attendance, Timetable, Marks, Syllabus, Reports, and RMS. The teacher's identity is hardcoded as **Prof. Sarah Nawaz** (`tch_sarah_01`) in the demo.
+The teacher experience is a pastel Aurora UI with a fixed app header, a bottom navigation bar, and a quick-action sheet. The main areas are Home, Attendance, Timetable, Marks, Syllabus, Reports, and RMS. The teacher's identity is hardcoded as **Prof. Sarita Menon** (`tch_sarah_01`) in the demo.
 
 ### Admin console
 

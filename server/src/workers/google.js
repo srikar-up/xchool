@@ -268,8 +268,14 @@ function documentRef(path) {
       const data = decodeFields(body.fields || {});
       return { exists: true, data: () => data };
     },
-    toWrite(data) {
-      return { update: { name: documentName(path), fields: encodeValue(data).mapValue.fields } };
+    toWrite(data, options = {}) {
+      const write = {
+        update: { name: documentName(path), fields: encodeValue(data).mapValue.fields },
+      };
+      if (options && options.merge) {
+        write.updateMask = { fieldPaths: Object.keys(data) };
+      }
+      return write;
     },
   };
 }
@@ -283,8 +289,8 @@ export function createRestFirestore() {
     batch() {
       const writes = [];
       return {
-        set(ref, data) {
-          writes.push(ref.toWrite(data));
+        set(ref, data, options) {
+          writes.push(ref.toWrite(data, options));
         },
         delete(ref) {
           writes.push({ delete: ref.name });

@@ -212,7 +212,7 @@ export default function Login() {
               SN
             </span>
             <span>
-              <strong>Continue as Prof. Sarah Nawaz</strong>
+              <strong>Continue as Prof. Sarita Menon</strong>
               <small>Science &amp; Mathematics · 10-A incharge</small>
             </span>
             <ArrowRight size={17} />

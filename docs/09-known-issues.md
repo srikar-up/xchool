@@ -98,7 +98,7 @@ There are three student shapes, two exam shapes, two syllabus shapes, and two ma
 
 ### KI-07 · S1 · Teacher app has no authentication
 
-`SplashScreen` goes directly to `MainNavScreen`. The teacher identity is hardcoded. Anyone who opens the app is “Prof. Sarah Nawaz”.
+`SplashScreen` goes directly to `MainNavScreen`. The teacher identity is hardcoded. Anyone who opens the app is “Prof. Sarita Menon”.
 
 **Fix:** teacher login/activation, session, scoped data.
 
